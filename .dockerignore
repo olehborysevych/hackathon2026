@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+!.env.example
+**/node_modules
+web/.next
+web/out
+server/cmd/server/web/*
+!server/cmd/server/web/.gitkeep
+bin
+design
+exports
+*.jsonl
