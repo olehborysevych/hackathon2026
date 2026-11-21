@@ -99,13 +99,19 @@ type PublicSeat struct {
 	SpriteSeed int    `json:"sprite_seed"`
 }
 
-// PublicConfig is the table config shown to players.
+// PublicConfig is the table config shown to players. Durations are whole seconds.
 type PublicConfig struct {
 	Seats     int `json:"seats"`
+	Humans    int `json:"humans"`
 	Rounds    int `json:"rounds"`
 	MaxIntro  int `json:"max_intro"`
 	MaxAsk    int `json:"max_ask"`
 	MaxAnswer int `json:"max_answer"`
+	TIntro    int `json:"t_intro"`
+	TAsk      int `json:"t_ask"`
+	TAnswer   int `json:"t_answer"`
+	TReveal   int `json:"t_reveal"`
+	TVote     int `json:"t_vote"`
 }
 
 type GameStart struct {

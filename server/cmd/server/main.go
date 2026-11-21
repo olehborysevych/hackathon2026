@@ -97,6 +97,11 @@ func main() {
 	mux.HandleFunc("GET /healthz", healthHandler(st))
 	authSvc.Routes(mux)
 	mux.Handle("GET /ws", games.Handler(authSvc.UserID, listEnv("WS_ORIGINS")))
+	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		_ = json.NewEncoder(w).Encode(cfg.Public())
+	})
 
 	webRoot, err := fs.Sub(webFS, "web")
 	if err != nil {

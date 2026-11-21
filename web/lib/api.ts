@@ -1,5 +1,7 @@
 // Thin client for the REST API (SPEC §7). Same origin, cookie auth (httpOnly `sid`).
 
+import type { PublicConfig } from "./ws";
+
 export type Me = { username: string };
 
 export class ApiError extends Error {
@@ -34,4 +36,5 @@ export const api = {
   register: (username: string, password: string, consent: boolean) =>
     call<Me>("/api/register", { method: "POST", body: JSON.stringify({ username, password, consent }) }),
   logout: () => call<{ ok: boolean }>("/api/logout", { method: "POST" }),
+  config: () => call<PublicConfig>("/api/config"),
 };

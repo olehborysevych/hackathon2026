@@ -110,3 +110,102 @@ ol.steps .t { font-family: var(--font-px), monospace; font-size: 8px; color: var
 .check input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--ink); }
 .error { background: var(--red); color: var(--white); border: 3px solid var(--ink); padding: 8px 10px; font-size: 20px; margin-bottom: 12px; }
 .muted { color: var(--parch); font-size: 22px; }
+
+/* ---- sprites ---- */
+canvas.sprite { display: block; margin: 0 auto; image-rendering: pixelated; image-rendering: crisp-edges; }
+
+/* ---- matching (design/game-room/matching.html) ---- */
+.center { text-align: center; }
+.stage { margin-top: 28px; background: var(--wood); border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); border-radius: 12px; padding: 26px 16px; }
+.stage .title { font-size: 16px; color: var(--gold); margin: 0 0 18px; }
+.slots { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+.slot {
+  width: 64px; height: 64px; border-radius: 50%; background: var(--wood-d); border: 4px dashed var(--parch-d);
+  display: flex; align-items: center; justify-content: center; font-family: var(--font-px), monospace; font-size: 12px; color: var(--parch-d);
+}
+.slot.filled { background: var(--green); border: 4px solid var(--ink); color: var(--ink); }
+.slot.blink { animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.status { font-size: 24px; color: var(--parch); min-height: 30px; margin: 0; }
+.dots { font-family: var(--font-px), monospace; font-size: 12px; color: var(--gold); letter-spacing: 4px; height: 20px; }
+.dots i { display: inline-block; font-style: normal; animation: blink 1.2s steps(2, start) infinite; }
+.dots i:nth-child(2) { animation-delay: .3s; }
+.dots i:nth-child(3) { animation-delay: .6s; }
+.counts { margin: 14px 0 0; font-size: 21px; color: var(--parch-d); }
+.actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-top: 22px; }
+
+/* ---- table ---- */
+.game { max-width: 900px; }
+.conn { font-size: 9px; color: var(--red); background: var(--parch); border: 3px solid var(--ink); padding: 6px 8px; }
+.sign {
+  margin-top: 14px; background: var(--parch); color: var(--ink); border: 4px solid var(--ink); box-shadow: 5px 5px 0 var(--ink);
+  padding: 10px 18px; text-align: center;
+}
+.sign-title { font-size: 13px; color: var(--red); }
+.sign .hint { margin: 4px 0 0; color: var(--ink); font-size: 21px; }
+.timer { font-size: 14px; color: var(--ink); margin-top: 6px; }
+.bar { height: 14px; border: 3px solid var(--ink); background: var(--wood-d); margin-top: 6px; }
+.bar i { display: block; height: 100%; background: var(--green); transition: width .25s linear; }
+
+.seats-row { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+.seat {
+  background: var(--parch); color: var(--ink); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  padding: 10px 6px 8px; text-align: center; min-width: 0; border-radius: 10px; font: inherit;
+}
+.seat.me { border-color: var(--gold); box-shadow: 4px 4px 0 var(--gold); }
+.seat.selectable { cursor: pointer; }
+.seat.selectable:hover { background: var(--parch-d); }
+.seat.picked { outline: 4px solid var(--red); outline-offset: 2px; }
+.seat .alias { font-family: var(--font-px), monospace; font-size: 8px; line-height: 1.5; margin: 6px 0 4px; text-transform: uppercase; overflow-wrap: anywhere; }
+.seat .model { font-size: 17px; color: var(--wood); overflow-wrap: anywhere; }
+.tag {
+  display: inline-block; font-family: var(--font-px), monospace; font-size: 7px; line-height: 1.4; padding: 3px 5px;
+  border: 2px solid var(--ink); background: var(--sky); color: var(--ink); text-transform: uppercase;
+}
+.tag.you { background: var(--gold); }
+.tag.human { background: var(--green); }
+.tag.ai { background: var(--red); color: var(--white); }
+
+.composer .kick { font-family: var(--font-px), monospace; font-size: 10px; color: var(--red); margin-bottom: 8px; text-transform: uppercase; line-height: 1.5; }
+.composer .hint { color: var(--ink); }
+.ta {
+  width: 100%; font-family: var(--font-body), monospace; font-size: 22px; line-height: 1.15; background: #fff8e6; color: var(--ink);
+  border: 3px solid var(--ink); padding: 8px; resize: vertical; min-height: 84px; border-radius: 8px;
+}
+.ta:focus-visible, .seat.selectable:focus-visible { outline: 4px solid var(--blue); outline-offset: 2px; }
+.row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.count { font-family: var(--font-px), monospace; font-size: 9px; color: var(--ink); }
+.count.over { color: var(--red); }
+.grow { flex: 1; }
+.qq { margin: 6px 0 8px; font-size: 22px; border-left: 4px solid var(--ink); padding: 4px 8px; background: var(--parch-d); }
+.answer-slot + .answer-slot { margin-top: 16px; padding-top: 12px; border-top: 2px dotted var(--wood-l); }
+.sent { margin: 4px 0 0; font-size: 21px; color: var(--green); font-weight: bold; }
+.vote-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+
+.transcript .tagline { display: block; font-size: 9px; color: var(--red); margin: 14px 0 4px; }
+.ent { padding: 6px 0; border-bottom: 2px dotted var(--parch-d); color: var(--ink); }
+.ent .who { font-family: var(--font-px), monospace; font-size: 8px; color: var(--blue); margin-right: 8px; text-transform: uppercase; }
+.ent .say { font-size: 22px; overflow-wrap: anywhere; }
+.ent.q { background: var(--parch-d); padding: 8px; margin-top: 10px; border: 2px solid var(--ink); }
+.ent.q .who { color: var(--red); }
+.ent.a { padding-left: 14px; }
+.ent.skip .say { color: var(--grey); }
+.ent.intro .who { color: var(--teal); }
+
+/* ---- result (design/game-room/result.html) ---- */
+.verdict { margin-top: 18px; border: 5px solid var(--ink); box-shadow: 7px 7px 0 var(--ink); border-radius: 14px; padding: 22px 18px; text-align: center; background: var(--parch); color: var(--ink); }
+.verdict h1 { font-weight: 400; font-size: 18px; margin: 0 0 10px; }
+.verdict p { margin: 0; font-size: 24px; line-height: 1.2; }
+.verdict.mutual { background: var(--green); }
+.verdict.missed { background: var(--red); color: var(--white); }
+.verdict.wrong { background: var(--parch-d); }
+.verdict .points { font-size: 28px; margin-top: 12px; }
+.verdict .points small { font-size: 10px; }
+h2.sec { font-weight: 400; font-size: 11px; color: var(--gold); margin: 26px 0 0; }
+.votes { margin: 0; padding-left: 20px; font-size: 22px; color: var(--ink); }
+.muted-ink { color: var(--wood); }
+
+@media (max-width: 640px) {
+  .seats-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vote-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

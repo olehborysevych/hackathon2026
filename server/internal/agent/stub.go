@@ -2,6 +2,7 @@ package agent
 
 import (
 	"context"
+	"hash/fnv"
 	"math/rand/v2"
 	"sync"
 	"time"
@@ -57,10 +58,13 @@ var (
 	}
 )
 
-func (s *Stub) pick(list []string) string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return list[s.rng.IntN(len(list))]
+// pick spreads seats over the list: the same game, phase and question gets a random starting
+// line, and each seat takes the next one, so two stub seats never say the same thing at once.
+func (s *Stub) pick(list []string, req Request, qid string) string {
+	h := fnv.New64a()
+	h.Write([]byte(req.GameID + "|" + string(req.Phase) + "|" + qid))
+	h.Write([]byte{byte(req.Round)})
+	return list[(h.Sum64()+uint64(req.Seat))%uint64(len(list))]
 }
 
 func (s *Stub) chance(p float64) bool {
@@ -88,12 +92,12 @@ func (s *Stub) Act(ctx context.Context, req Request) (Reply, error) {
 	var rep Reply
 	switch req.Phase {
 	case game.Intro:
-		rep.Items = []Item{{Text: s.pick(stubIntros), Skip: s.chance(s.SkipRate)}}
+		rep.Items = []Item{{Text: s.pick(stubIntros, req, ""), Skip: s.chance(s.SkipRate)}}
 	case game.Ask:
-		rep.Items = []Item{{Text: s.pick(stubQuestions), Skip: s.chance(s.SkipRate)}}
+		rep.Items = []Item{{Text: s.pick(stubQuestions, req, ""), Skip: s.chance(s.SkipRate)}}
 	case game.Answer:
 		for _, q := range req.Questions {
-			rep.Items = append(rep.Items, Item{QuestionID: q.ID, Text: s.pick(stubAnswers), Skip: s.chance(s.SkipRate)})
+			rep.Items = append(rep.Items, Item{QuestionID: q.ID, Text: s.pick(stubAnswers, req, q.ID), Skip: s.chance(s.SkipRate)})
 		}
 	case game.Vote:
 		if len(req.Candidates) > 0 {

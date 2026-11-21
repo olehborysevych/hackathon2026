@@ -270,8 +270,16 @@ func (g *Game) publicSeats() []ws.PublicSeat {
 	return out
 }
 
-func (g *Game) publicConfig() ws.PublicConfig {
-	return ws.PublicConfig{Seats: len(g.seats), Rounds: g.cfg.Rounds, MaxIntro: MaxIntro, MaxAsk: MaxAsk, MaxAnswer: MaxAnswer}
+func (g *Game) publicConfig() ws.PublicConfig { return g.cfg.Public() }
+
+// Public is the config players may see (also served on /api/config for the start screen).
+func (c Config) Public() ws.PublicConfig {
+	sec := func(d time.Duration) int { return int(d.Round(time.Second) / time.Second) }
+	return ws.PublicConfig{
+		Seats: c.Seats(), Humans: c.HumansPerGame, Rounds: c.Rounds,
+		MaxIntro: MaxIntro, MaxAsk: MaxAsk, MaxAnswer: MaxAnswer,
+		TIntro: sec(c.TIntro), TAsk: sec(c.TAsk), TAnswer: sec(c.TAnswer), TReveal: sec(c.TReveal), TVote: sec(c.TVote),
+	}
 }
 
 // Start moves LOBBY → INTRO.

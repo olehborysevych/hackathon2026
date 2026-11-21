@@ -151,3 +151,18 @@ func collectRuns(eff []game.Effect) []game.RunAgent {
 	}
 	return out
 }
+
+func TestStubSeatsSayDifferentThings(t *testing.T) {
+	s := NewStub(3)
+	s.MinDelay, s.MaxDelay, s.SkipRate = 0, 0, 0
+	for _, ph := range []game.Phase{game.Intro, game.Ask} {
+		seen := map[string]bool{}
+		for seat := 0; seat < 5; seat++ {
+			rep, _ := s.Act(context.Background(), Request{GameID: "g1", Seat: seat, Phase: ph, Round: 1})
+			if seen[rep.Items[0].Text] {
+				t.Fatalf("%s: two seats said %q", ph, rep.Items[0].Text)
+			}
+			seen[rep.Items[0].Text] = true
+		}
+	}
+}
