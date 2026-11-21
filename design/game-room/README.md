@@ -49,9 +49,9 @@ screen is rebuilt; the spec limits are 160 for intros and questions and 200 for 
 
 ## Open items for the rebuild
 
-- Suspicion slider stops (AI · Leaning AI · Unsure · Leaning human · Human) need mapping to SPEC §4 marks.
-- Past phases are reviewable with the phase control, but the composer still looks live. Decide whether it becomes read-only.
-- Speech bubble and table sizes are tuned for 160-character text on desktop. Phone layout is not checked.
+- ~~Suspicion slider stops need mapping to SPEC §4 marks.~~ Done in `/web`, DECISIONS 76.
+- ~~Past phases: should the composer become read-only?~~ Yes, DECISIONS 77.
+- ~~Speech bubbles at 200 characters; phone layout.~~ Done in `/web`, DECISIONS 80–81.
 - The cyberpunk look breaks the 16-colour rule in SPEC §8. Decide whether that rule still applies before adopting it.
 
 See `../../DECISIONS.md` for the reasoning behind these choices.
