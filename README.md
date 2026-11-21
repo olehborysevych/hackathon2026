@@ -10,7 +10,17 @@ Needs Go, Node and Docker.
 make run     # Postgres in docker, builds the web app into the Go binary, serves http://localhost:8080
 make dev     # hot reload: Go on :8080 + next dev on :3000 (use http://localhost:3000)
 make test
+make export  # JSONL per finished game (bot_human games excluded)
 ```
+
+Play alone: a short game where a `bot_human` takes the second human seat after 5 seconds.
+
+```bash
+T_INTRO=15 T_ASK=15 T_ANSWER=20 T_REVEAL=10 T_VOTE=20 DEV_BOT_HUMAN_AFTER_SEC=5 make run
+```
+
+The AI seats are stubs (canned lines, no LLM) until M3. Store integration tests need a disposable database:
+`TEST_DATABASE_URL=postgres://… go test ./server/internal/store/` (it drops and recreates the schema).
 
 ## Deploy (Railway)
 
@@ -24,3 +34,6 @@ make test
    It should answer `{"db":"ok","status":"ok"}`.
 
 Railway sets `PORT` itself. Keep the service at one replica (SPEC §5).
+
+Game settings are env vars on the app service (SPEC §10): `HUMANS_PER_GAME`, `AI_PER_GAME`, `ROUNDS`, `T_INTRO`, `T_ASK`,
+`T_ANSWER`, `T_REVEAL`, `T_VOTE` (seconds, minimum 5). Leave `DEV_BOT_HUMAN_AFTER_SEC` unset in production.
