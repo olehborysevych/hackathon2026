@@ -104,8 +104,11 @@ func (a *LLM) Act(ctx context.Context, req Request) (Reply, error) {
 
 	results := make([]ai.Result, len(slots))
 	var wg sync.WaitGroup
-	for i, s := range slots {
-		s.in.Seed = seed(req.GameID, req.Seat, string(req.Phase), req.Round, s.qid)
+	for i := range slots {
+		// Seed the slot itself, not a loop copy: the skip_rate roll below reads slots[i].in.Seed,
+		// and an unseeded roll is the same number for every seat and game.
+		slots[i].in.Seed = seed(req.GameID, req.Seat, string(req.Phase), req.Round, slots[i].qid)
+		s := slots[i]
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
