@@ -78,7 +78,8 @@ func playGame(t *testing.T, s *Store, id string, specs []game.SeatSpec) {
 				if g.Phase() == game.Ask {
 					k = game.MsgQuestion
 				}
-				eff, err := g.Submit(now, game.Submission{Seat: st.Index, Phase: g.Phase(), Round: g.Round(), Kind: k, Text: "hi", Skip: st.Index == 0})
+				eff, err := g.Submit(now, game.Submission{Seat: st.Index, Phase: g.Phase(), Round: g.Round(), Kind: k, Text: "hi", Skip: st.Index == 0,
+					BrokeCharacter: st.Index == 2 && g.Phase() == game.Intro, OutOfGame: st.Index == 3 && g.Phase() == game.Intro})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -103,6 +104,12 @@ func playGame(t *testing.T, s *Store, id string, specs []game.SeatSpec) {
 	if err := s.InsertAICall(ctx, agent.CallRecord{GameID: id, Seat: 2, Purpose: "intro", Provider: "stub", ModelID: "stub", CreatedAt: now}); err != nil {
 		t.Fatal(err)
 	}
+	// A full LLM call record: request JSON, draft, tokens, cost.
+	if err := s.InsertAICall(ctx, agent.CallRecord{GameID: id, Seat: 3, Purpose: "answer", Provider: "Google", ModelID: "google/gemma-4-31b-it",
+		PromptVersion: "v2", Request: []byte(`{"model":"google/gemma-4-31b-it","messages":[{"role":"system","content":"x"}]}`),
+		Draft: "draft", Final: "final", LatencyMs: 812, InputTokens: 1800, OutputTokens: 12, CostUSD: 0.00036, CreatedAt: now}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func TestGamePersistenceAndExport(t *testing.T) {
@@ -113,7 +120,7 @@ func TestGamePersistenceAndExport(t *testing.T) {
 		t.Fatal(err)
 	}
 	u2, _ := s.CreateUser(ctx, "blue_fox", "x", time.Now())
-	ai := game.SeatSpec{Kind: game.KindAI, Provider: "stub", ModelID: "stub"}
+	ai := game.SeatSpec{Kind: game.KindAI, Provider: "stub", ModelID: "stub", Persona: []byte(`{"age":27,"job":"backend developer"}`)}
 
 	real := "00000000-0000-4000-8000-000000000001"
 	withBot := "00000000-0000-4000-8000-000000000002"
@@ -121,6 +128,24 @@ func TestGamePersistenceAndExport(t *testing.T) {
 	playGame(t, s, withBot, []game.SeatSpec{{Kind: game.KindHuman, UserID: u1.ID}, {Kind: game.KindBotHuman}, ai, ai, ai})
 
 	var n int
+	_ = s.pool.QueryRow(ctx, `select count(*) from seats where game_id=$1 and persona->>'job' = 'backend developer'`, real).Scan(&n)
+	if n != 3 {
+		t.Fatalf("personas stored on %d AI seats", n)
+	}
+	_ = s.pool.QueryRow(ctx, `select count(*) from messages where game_id=$1 and broke_character and kind='intro' and seat=2`, real).Scan(&n)
+	if n != 1 {
+		t.Fatalf("broke_character rows: %d", n)
+	}
+	_ = s.pool.QueryRow(ctx, `select count(*) from messages where game_id=$1 and out_of_game and seat=3`, real).Scan(&n)
+	if n != 1 {
+		t.Fatalf("out_of_game rows: %d", n)
+	}
+	var cost float64
+	var req string
+	if err := s.pool.QueryRow(ctx, `select cost_usd::float8, request->>'model' from ai_calls where game_id=$1 and purpose='answer'`, real).Scan(&cost, &req); err != nil ||
+		cost != 0.00036 || req != "google/gemma-4-31b-it" {
+		t.Fatalf("ai call cost/request: %v %v %v", cost, req, err)
+	}
 	_ = s.pool.QueryRow(ctx, `select count(*) from messages where game_id=$1`, real).Scan(&n)
 	if n != 5+1*(5+4*4) { // intros + one round (questions + 4 asked × 4 answers; seat 0 skips its question)
 		t.Fatalf("messages: %d", n)
@@ -138,7 +163,7 @@ func TestGamePersistenceAndExport(t *testing.T) {
 	if status != "finished" {
 		t.Fatalf("status %s", status)
 	}
-	for table, want := range map[string]int{"votes": 1, "note_events": 1, "results": 5, "ai_calls": 1, "seats": 5} {
+	for table, want := range map[string]int{"votes": 1, "note_events": 1, "results": 5, "ai_calls": 2, "seats": 5} {
 		_ = s.pool.QueryRow(ctx, `select count(*) from `+table+` where game_id=$1`, real).Scan(&n)
 		if n != want {
 			t.Errorf("%s: %d, want %d", table, n, want)

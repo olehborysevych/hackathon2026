@@ -9,6 +9,7 @@ package agent
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -24,6 +25,7 @@ type Request struct {
 	Alias      string
 	Kind       game.SeatKind // ai or bot_human
 	ModelID    string
+	Persona    json.RawMessage // ai seats only
 	Phase      game.Phase
 	Round      int
 	Deadline   time.Time     // the agent's own deadline (phase end − margin)
@@ -35,14 +37,17 @@ type Request struct {
 
 // Item is one slot: the intro, the question, or the answer to QuestionID.
 type Item struct {
-	QuestionID string
-	Text       string
-	Skip       bool
+	QuestionID     string
+	Text           string
+	Skip           bool
+	BrokeCharacter bool // persisted on messages.broke_character; the text is never altered (invariant 7)
+	OutOfGame      bool // safety valve fired
 }
 
 type Reply struct {
 	Items []Item
-	Vote  *int // VOTE only; nil = no vote
+	Vote  *int         // VOTE only; nil = no vote
+	Calls []CallRecord // every LLM call made for this reply; the hub persists them even on timeout
 }
 
 type Agent interface {
@@ -108,6 +113,7 @@ func Resolve(req Request, rep Reply, err error) (subs []game.Submission, vote *i
 		subs = append(subs, game.Submission{
 			Seat: req.Seat, Phase: req.Phase, Round: req.Round, Kind: kind,
 			QuestionID: qid, Text: text, Skip: skip,
+			BrokeCharacter: !skip && it.BrokeCharacter, OutOfGame: !skip && it.OutOfGame,
 		})
 	}
 	return subs, nil

@@ -18,7 +18,6 @@ import (
 	"syscall"
 	"time"
 
-	"hackathon2026/server/internal/agent"
 	"hackathon2026/server/internal/auth"
 	"hackathon2026/server/internal/game"
 	"hackathon2026/server/internal/hub"
@@ -80,12 +79,11 @@ func main() {
 	}
 	authSvc := auth.New(authStore)
 
-	games := hub.New(ctx, hub.Options{
+	games := hub.New(ctx, aiOptions(hub.Options{
 		Config:        cfg,
 		BotHumanAfter: botAfter,
-		Agent:         agent.NewStub(uint64(time.Now().UnixNano())),
 		Store:         gameStore,
-	})
+	}))
 	slog.Info("game config",
 		"humans", cfg.HumansPerGame, "ai", cfg.AIPerGame, "rounds", cfg.Rounds,
 		"t_intro", cfg.TIntro, "t_ask", cfg.TAsk, "t_answer", cfg.TAnswer, "t_reveal", cfg.TReveal, "t_vote", cfg.TVote,

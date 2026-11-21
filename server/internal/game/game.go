@@ -9,6 +9,7 @@
 package game
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand/v2"
@@ -78,9 +79,10 @@ func maxLen(k MsgKind) int {
 // SeatSpec is who sits in a seat. Only the hub and the store see it.
 type SeatSpec struct {
 	Kind     SeatKind
-	UserID   string // humans only
-	Provider string // ai only
-	ModelID  string // ai only
+	UserID   string          // humans only
+	Provider string          // ai only
+	ModelID  string          // ai only
+	Persona  json.RawMessage // ai only; persisted to seats.persona, never sent to clients
 }
 
 type Seat struct {
@@ -160,6 +162,8 @@ type MessageRecord struct {
 	SubmittedAt      *time.Time // nil when the seat sent nothing before the deadline
 	FirstKeystrokeMs *int
 	EditCount        *int
+	BrokeCharacter   bool // AI said it is an AI / answered like an assistant (shown as-is, SPEC §3.6)
+	OutOfGame        bool // AI safety valve fired (stepped out of the game)
 }
 
 type VoteRecord struct {
@@ -198,6 +202,8 @@ type Submission struct {
 	Skip             bool
 	FirstKeystrokeMs *int
 	EditCount        *int
+	BrokeCharacter   bool // set by AI agents only; persisted, never broadcast
+	OutOfGame        bool
 }
 
 // ErrRejected wraps every validation error, so the hub can tell a bad request from a bug.
@@ -348,6 +354,7 @@ func (g *Game) Submit(now time.Time, s Submission) ([]Effect, error) {
 			ID: id, GameID: g.ID, Round: g.round, Phase: g.phase, Kind: want, Seat: s.Seat,
 			QuestionID: s.QuestionID, Text: text, Skipped: s.Skip, PhaseStartedAt: g.phaseStarted,
 			SubmittedAt: &at, FirstKeystrokeMs: s.FirstKeystrokeMs, EditCount: s.EditCount,
+			BrokeCharacter: s.BrokeCharacter, OutOfGame: s.OutOfGame,
 		}},
 		SendTo{Seat: s.Seat, Type: ws.TSubmitAck, Payload: ws.SubmitAck{
 			Phase: string(g.phase), Round: g.round, Kind: string(want), QuestionID: s.QuestionID, Skipped: s.Skip,

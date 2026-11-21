@@ -202,7 +202,7 @@ func (t *table) startAgent(ra game.RunAgent) {
 	s := t.g.Seats()[ra.Seat]
 	deadline := ra.Deadline.Add(-t.h.opts.AgentMargin)
 	req := agent.Request{
-		GameID: t.id, Seat: ra.Seat, Alias: s.Alias, Kind: s.Kind, ModelID: s.ModelID,
+		GameID: t.id, Seat: ra.Seat, Alias: s.Alias, Kind: s.Kind, ModelID: s.ModelID, Persona: s.Persona,
 		Phase: ra.Phase, Round: ra.Round, Deadline: deadline,
 		Questions: ra.Questions, Candidates: ra.Candidates, Transcript: t.g.Reveals(),
 	}
@@ -224,7 +224,18 @@ func (t *table) startAgent(ra game.RunAgent) {
 func (t *table) agentDone(d agentDone) {
 	subs, vote := agent.Resolve(d.req, d.reply, d.err)
 	s := t.g.Seats()[d.run.Seat]
-	if s.Kind == game.KindAI {
+	// Every LLM call the agent made is persisted, timeouts included (invariant 4).
+	for _, c := range d.reply.Calls {
+		c.GameID, c.Seat = t.id, d.run.Seat
+		if c.PromptVersion == "" {
+			c.PromptVersion = t.h.opts.PromptVersion
+		}
+		if c.CreatedAt.IsZero() {
+			c.CreatedAt = time.Now()
+		}
+		t.exec([]game.Effect{game.Persist{Record: c}})
+	}
+	if s.Kind == game.KindAI && len(d.reply.Calls) == 0 {
 		final, _ := json.Marshal(struct {
 			Items []game.Submission `json:"items,omitempty"`
 			Vote  *int              `json:"vote,omitempty"`

@@ -41,6 +41,9 @@ type Options struct {
 	AIModel       string        // recorded on ai seats and shown at RESULT (default "stub")
 	Difficulty    string        // recorded on games (default "stub")
 	PromptVersion string        // recorded on games and ai calls (default "stub")
+	// AISeats returns the specs (provider, model, persona) for a new game's AI seats. Nil = every
+	// AI seat gets AIProvider/AIModel and no persona.
+	AISeats func(n int) []game.SeatSpec
 }
 
 type Hub struct {
@@ -263,8 +266,17 @@ func (h *Hub) startLocked(users []string, bots int) {
 	for i := 0; i < bots; i++ {
 		specs = append(specs, game.SeatSpec{Kind: game.KindBotHuman})
 	}
+	var ai []game.SeatSpec
+	if h.opts.AISeats != nil {
+		ai = h.opts.AISeats(cfg.AIPerGame)
+	}
 	for i := 0; i < cfg.AIPerGame; i++ {
-		specs = append(specs, game.SeatSpec{Kind: game.KindAI, Provider: h.opts.AIProvider, ModelID: h.opts.AIModel})
+		spec := game.SeatSpec{Provider: h.opts.AIProvider, ModelID: h.opts.AIModel}
+		if i < len(ai) {
+			spec = ai[i]
+		}
+		spec.Kind, spec.UserID = game.KindAI, ""
+		specs = append(specs, spec)
 	}
 	id := newUUID()
 	g := game.New(id, cfg, specs, rand.New(rand.NewPCG(seed(), seed())))

@@ -88,6 +88,7 @@ type Call struct {
 	Cost          float64
 	Output        string
 	Err           string
+	Request       llm.CompletionReq // what was sent (logged to ai_calls.request)
 }
 
 // Result is one pipeline run, with everything SPEC §3.4 says to log.
@@ -332,7 +333,7 @@ func Run(ctx context.Context, cfg Config, in SeatInput) Result {
 func complete(ctx context.Context, l llm.LLM, req llm.CompletionReq, purpose, version string) (string, Call, error) {
 	r, err := l.Complete(ctx, req)
 	c := Call{Purpose: purpose, Model: req.Model, Provider: r.Provider, PromptVersion: version, Latency: r.Latency,
-		InputTokens: r.InputTokens, OutputTokens: r.OutputTokens, Cost: r.Cost, Output: r.Text}
+		InputTokens: r.InputTokens, OutputTokens: r.OutputTokens, Cost: r.Cost, Output: r.Text, Request: req}
 	if err != nil {
 		c.Err = err.Error()
 	}
