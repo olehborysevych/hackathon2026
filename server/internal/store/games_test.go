@@ -122,11 +122,11 @@ func TestGamePersistenceAndExport(t *testing.T) {
 
 	var n int
 	_ = s.pool.QueryRow(ctx, `select count(*) from messages where game_id=$1`, real).Scan(&n)
-	if n != 5+2*(5+4*4) { // intros + per round (questions + 4 asked × 4 answers; seat 0 skips its question)
+	if n != 5+1*(5+4*4) { // intros + one round (questions + 4 asked × 4 answers; seat 0 skips its question)
 		t.Fatalf("messages: %d", n)
 	}
 	_ = s.pool.QueryRow(ctx, `select count(*) from messages where game_id=$1 and skipped and submitted_at is null`, real).Scan(&n)
-	if n != 2*16 {
+	if n != 1*16 {
 		t.Fatalf("missing answers stored as timed-out skips: %d", n)
 	}
 	_ = s.pool.QueryRow(ctx, `select count(*) from messages where submitted_at is null and not skipped`).Scan(&n)
@@ -158,7 +158,7 @@ func TestGamePersistenceAndExport(t *testing.T) {
 		t.Fatalf("exported %d games", len(exported))
 	}
 	e := exported[0]
-	if len(e.Seats) != 5 || len(e.Messages) != 47 || len(e.Votes) != 1 || len(e.Results) != 5 {
+	if len(e.Seats) != 5 || len(e.Messages) != 26 || len(e.Votes) != 1 || len(e.Results) != 5 {
 		t.Fatalf("export sizes seats=%d messages=%d votes=%d results=%d", len(e.Seats), len(e.Messages), len(e.Votes), len(e.Results))
 	}
 	if _, ok := e.Seats[0]["user_id"]; !ok {

@@ -56,7 +56,7 @@ LOBBY → INTRO → ( ASK → ANSWER → REVEAL ) × ROUNDS → VOTE → RESULT
 | VOTE   | 45s | Each human picks exactly one seat they believe is the other human. AIs vote too (logged, not scored). |
 | RESULT | —   | Seats revealed (human/AI + model), vote arrows, points. |
 
-- `ROUNDS = 2` (config 1–3). Typical game ≈ 7–8 min.
+- `ROUNDS = 1` (config 1–3). Typical game ≈ 4–5 min.
 - Intros are revealed together at the end of INTRO.
 - **Sealed:** submissions are hidden until the phase ends. The server **never broadcasts who has
   submitted, who is typing, or submission order.** (AI answers instantly; that must not leak.)
@@ -328,7 +328,7 @@ submission status of other seats, or timing of other seats.
 ## 10. Config (env)
 ```
 DATABASE_URL, SESSION_SECRET, PORT
-HUMANS_PER_GAME=2  AI_PER_GAME=3  ROUNDS=2
+HUMANS_PER_GAME=2  AI_PER_GAME=3  ROUNDS=1
 T_INTRO=60 T_ASK=45 T_ANSWER=90 T_REVEAL=30 T_VOTE=45
 DIFFICULTY=directed|independent
 LLM_BASE_URL=https://openrouter.ai/api/v1

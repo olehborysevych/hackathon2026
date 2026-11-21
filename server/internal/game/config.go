@@ -31,7 +31,7 @@ const (
 
 func DefaultConfig() Config {
 	return Config{
-		HumansPerGame: 2, AIPerGame: 3, Rounds: 2,
+		HumansPerGame: 2, AIPerGame: 3, Rounds: 1,
 		TIntro: 60 * time.Second, TAsk: 45 * time.Second, TAnswer: 90 * time.Second,
 		TReveal: 30 * time.Second, TVote: 45 * time.Second,
 	}

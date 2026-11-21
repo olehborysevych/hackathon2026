@@ -426,8 +426,8 @@ func TestEverythingPersisted(t *testing.T) {
 			finishes++
 		}
 	}
-	// 5 intros + per round (5 questions + 5×4 answers) × 2 rounds = 55
-	if msgs != 55 || votes != 5 || games != 1 || finishes != 1 {
+	// 5 intros + per round (5 questions + 5×4 answers) × 1 round = 30
+	if msgs != 30 || votes != 5 || games != 1 || finishes != 1 {
 		t.Fatalf("msgs=%d votes=%d games=%d finishes=%d", msgs, votes, games, finishes)
 	}
 }
@@ -552,7 +552,7 @@ func TestRunAgentOnlyForNonHumans(t *testing.T) {
 			}
 		}
 	}
-	want := map[Phase]int{Intro: 4, Ask: 8, Answer: 8, Vote: 4}
+	want := map[Phase]int{Intro: 4, Ask: 4, Answer: 4, Vote: 4} // one round by default
 	if !reflect.DeepEqual(perPhase, want) {
 		t.Fatalf("agent runs %v, want %v", perPhase, want)
 	}

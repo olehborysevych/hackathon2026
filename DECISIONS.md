@@ -143,3 +143,9 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     by user id, so a deleted (anonymized) account drops out.
 49. **Aggregation is done per request in SQL, ranking in Go** (`stats.Rank`/`stats.Build`, pure and unit-tested). Fine for a
     hackathon-sized table; add a materialized view only if it gets slow.
+
+## Game length
+
+50. **Default `ROUNDS` is 1** (was 2): one ask → answer → reveal cycle, about 4–5 minutes per game with default timings.
+    SPEC §2.2 and §10 are updated to match. `ROUNDS=2` or `3` still works via env. A deploy that sets `ROUNDS` explicitly
+    keeps its own value.

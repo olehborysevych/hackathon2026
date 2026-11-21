@@ -7,7 +7,7 @@ import type { PublicConfig } from "@/lib/ws";
 import { Disclosure } from "./components";
 
 const DEFAULT_CONFIG: PublicConfig = {
-  seats: 5, humans: 2, rounds: 2, max_intro: 160, max_ask: 160, max_answer: 200,
+  seats: 5, humans: 2, rounds: 1, max_intro: 160, max_ask: 160, max_answer: 200,
   t_intro: 60, t_ask: 45, t_answer: 90, t_reveal: 30, t_vote: 45,
 };
 
