@@ -276,3 +276,51 @@ func TestAnglesSpreadAcrossSeats(t *testing.T) {
 		t.Errorf("sarcastic mood should favour the sarcasm angle: %d/1000", sarc)
 	}
 }
+
+func TestStripSelfAlias(t *testing.T) {
+	for in, want := range map[string]string{
+		"hey, i'm misty owl. ux designer from berlin": "hey ux designer from berlin",
+		"hi im cobalt finch, just here for the food":  "hi just here for the food",
+		"Misty Owl here. Long day.":                   "Long day.",
+		"misty owl. what about you?":                  "what about you?",
+		"hi im misty owl":                             "hi",
+		"misty owl":                                   "hi",
+		"lol blue fox is weird":                       "lol blue fox is weird",
+		"my cat is called misty, owl lover":           "my cat is called misty, owl lover",
+	} {
+		if got := StripSelfAlias(in, "Misty Owl"); got != want && !(in == "hi im cobalt finch, just here for the food") {
+			t.Errorf("StripSelfAlias(%q) = %q, want %q", in, got, want)
+		}
+	}
+	if got := StripSelfAlias("hi im cobalt finch, just here for the food", "Cobalt Finch"); got != "hi just here for the food" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestV3DefaultsGuardAlias(t *testing.T) {
+	if !DefaultFeatures("v3").AliasGuard || DefaultFeatures("v2").AliasGuard {
+		t.Fatal("alias guard must be on for v3 and off for frozen v2")
+	}
+	f := &fakeLLM{seat: []string{"hey i'm amber owl. coffee is mid"}}
+	in := in("")
+	in.Persona.Typing.TypoRate = 0
+	r := Run(context.Background(), Config{LLM: f, SeatModel: "s", PromptVersion: "v3"}, in)
+	if strings.Contains(strings.ToLower(r.Final), "amber owl") {
+		t.Fatalf("own alias kept: %q", r.Final)
+	}
+}
+
+func TestIntroAnglesShortAndVaried(t *testing.T) {
+	rng := rand.New(rand.NewPCG(3, 3))
+	seen := map[string]int{}
+	for i := 0; i < 1000; i++ {
+		mp := MessagePlan{TargetLen: 120}.WithIntroAngle(rng)
+		seen[mp.Angle]++
+		if strings.HasPrefix(mp.Angle, "just a short greeting") && mp.TargetLen > 14 {
+			t.Fatalf("greeting intro should be short: %d", mp.TargetLen)
+		}
+	}
+	if len(seen) != len(introAngles) || seen["just a short greeting, nothing else"] < 300 {
+		t.Errorf("intro angle spread: %v", seen)
+	}
+}

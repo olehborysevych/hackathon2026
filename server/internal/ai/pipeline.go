@@ -36,6 +36,7 @@ type SeatInput struct {
 	OtherAliases []string
 	MaxLen       int
 	Seed         uint64 // per-call RNG seed; 0 = random
+	Kind         string // intro|ask|answer (v3 plans intros differently)
 }
 
 // Features are pipeline behaviours beyond "draft → critic". v1 has none of them, so v1 numbers
@@ -50,14 +51,19 @@ type Features struct {
 	SkipRoll     bool // roll persona.skip_rate in code (off in the harness)
 	BreakAsIs    bool // a draft that broke character bypasses critic/style (SPEC §3.6: never filter)
 	Angle        bool // sample a per-message angle and ban stock openers (cross-seat convergence)
+	AliasGuard   bool // strip "hi i'm <own alias>" self-introductions (v3)
 }
 
 func DefaultFeatures(version string) Features {
 	if version == "v1" {
 		return Features{}
 	}
-	return Features{Plan: true, StyleInCode: true, EchoGuard: true, SafetyMarker: true, CriticGuard: true,
+	f := Features{Plan: true, StyleInCode: true, EchoGuard: true, SafetyMarker: true, CriticGuard: true,
 		CleanSkip: true, BreakAsIs: true, Angle: true}
+	if version != "v2" {
+		f.AliasGuard = true
+	}
+	return f
 }
 
 type Config struct {
@@ -202,7 +208,14 @@ func Run(ctx context.Context, cfg Config, in SeatInput) Result {
 	var mp *MessagePlan
 	if f.Plan {
 		p := PlanMessage(in.Persona, rng, in.MaxLen, in.OwnMessages)
-		if f.Angle {
+		// Angles are answer framings ("answer, then add an aside"); from v3 they apply to answers
+		// only, since on intros/questions they bolted the same small talk onto every message.
+		switch {
+		case f.Angle && cfg.PromptVersion == "v2":
+			p = p.WithAngle(in.Persona, rng)
+		case f.Angle && in.Kind == "intro":
+			p = p.WithIntroAngle(rng)
+		case f.Angle && in.Question != "":
 			p = p.WithAngle(in.Persona, rng)
 		}
 		mp = &p
@@ -316,6 +329,9 @@ func Run(ctx context.Context, cfg Config, in SeatInput) Result {
 				res.CriticNote = "kept"
 			}
 		}
+	}
+	if final != Skip && f.AliasGuard {
+		final = StripSelfAlias(final, in.Alias)
 	}
 	if final != Skip && f.StyleInCode && mp != nil {
 		protect := append([]string{in.Alias, in.Persona.Location, in.Persona.Job}, in.OtherAliases...)

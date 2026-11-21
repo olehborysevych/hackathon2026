@@ -43,7 +43,7 @@ func aiOptions(o hub.Options) hub.Options {
 			os.Exit(1)
 		}
 	}
-	version := env("PROMPT_VERSION", "v2")
+	version := env("PROMPT_VERSION", "v3")
 	if strings.EqualFold(env("DIFFICULTY", "independent"), "directed") {
 		slog.Warn("DIFFICULTY=directed is not wired yet: playing independent")
 	}
@@ -59,6 +59,8 @@ func aiOptions(o hub.Options) hub.Options {
 		GameContext:   env("GAME_CONTEXT", "Hackathon"),
 		Fallback:      stub,
 		Location:      loc,
+		// Intros are optional; humans often skip them (DECISIONS 75).
+		IntroExtraSkip: 0.15,
 	}
 	o.AIProvider, o.PromptVersion, o.Difficulty = "openrouter", version, "independent"
 	rng := rand.New(rand.NewPCG(uint64(time.Now().UnixNano()), 11))

@@ -19,7 +19,7 @@ Play alone: a short game where a `bot_human` takes the second human seat after 5
 T_INTRO=15 T_ASK=15 T_ANSWER=20 T_REVEAL=10 T_VOTE=20 DEV_BOT_HUMAN_AFTER_SEC=5 make run
 ```
 
-AI seats play with the real pipeline (`internal/ai`, prompt v2) when `OPENROUTER_API_KEY` is set, and use canned
+AI seats play with the real pipeline (`internal/ai`, prompt v3) when `OPENROUTER_API_KEY` is set, and use canned
 stub lines otherwise (or with `AI_MODE=stub`). Models, prompt version, critic and venue come from env; see
 `.env.example`. Turn on zero data retention in the OpenRouter privacy settings first: player messages are in the
 prompts. `LIVE_LLM=1 go test ./server/internal/agent -run TestLiveTable -v` runs one seat through every phase
