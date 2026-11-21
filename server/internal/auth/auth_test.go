@@ -208,3 +208,25 @@ func TestRateLimit(t *testing.T) {
 		t.Fatalf("want 429 after 10 attempts, got %d", last)
 	}
 }
+
+func TestUserIDFromCookie(t *testing.T) {
+	s := New(newFake())
+	rec := post(serve(s), "/api/register", `{"username":"amber_owl","password":"hunter2hunter2","consent":true}`)
+	req := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	if _, err := s.UserID(req); err == nil {
+		t.Fatal("no cookie accepted")
+	}
+	req.AddCookie(sid(rec))
+	id, err := s.UserID(req)
+	if err != nil || id != "id-amber_owl" {
+		t.Fatalf("got %q %v", id, err)
+	}
+	bad := httptest.NewRequest(http.MethodGet, "/ws", nil)
+	bad.AddCookie(&http.Cookie{Name: CookieName, Value: "forged"})
+	if _, err := s.UserID(bad); err == nil {
+		t.Fatal("forged cookie accepted")
+	}
+	if _, err := New(nil).UserID(req); err == nil {
+		t.Fatal("accepted without a store")
+	}
+}

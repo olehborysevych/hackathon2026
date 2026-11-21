@@ -204,6 +204,29 @@ func (s *Service) startSession(w http.ResponseWriter, r *http.Request, user stor
 	return true
 }
 
+// ErrNoSession means the request has no valid session cookie.
+var ErrNoSession = errors.New("not signed in")
+
+// UserID returns the signed-in user's id from the `sid` cookie. The WebSocket endpoint uses it.
+// It deliberately returns no username: the game side only ever sees user ids (invariant 3).
+func (s *Service) UserID(r *http.Request) (string, error) {
+	if s.store == nil {
+		return "", ErrNoSession
+	}
+	c, err := r.Cookie(CookieName)
+	if err != nil || c.Value == "" {
+		return "", ErrNoSession
+	}
+	user, err := s.store.UserBySession(r.Context(), hashToken(c.Value), s.now())
+	if errors.Is(err, store.ErrNotFound) {
+		return "", ErrNoSession
+	}
+	if err != nil {
+		return "", err
+	}
+	return user.ID, nil
+}
+
 func (s *Service) cookie(r *http.Request, value string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name:     CookieName,
