@@ -23,7 +23,8 @@ coverage.out
 next-env.d.ts
 
 # Embedded web build output
-/server/cmd/server/web/
+/server/cmd/server/web/*
+!/server/cmd/server/web/.gitkeep
 
 # Local data
 /data/

@@ -1,0 +1,112 @@
+/* Find the Human — tokens and components ported from design/game-room/shared.css + start.html.
+   16-colour palette only. Flat fills, hard 2–4px borders, no gradients, no blur (SPEC §8). */
+:root {
+  --ink: #1b1220; --wood-d: #2a1a14; --wood: #5a3524; --wood-l: #8a5a36;
+  --parch: #f1e2bc; --parch-d: #d4b983; --gold: #e9b44c; --red: #c2503c;
+  --green: #6fa04a; --blue: #3f78a8; --purple: #7d56a0; --teal: #3e9c94;
+  --grey: #8c8579; --white: #fff6e0; --pink: #d9739a; --sky: #8fc3d9;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  background: var(--wood-d);
+  color: var(--white);
+  font-family: var(--font-body), ui-monospace, Menlo, monospace;
+  font-size: 20px;
+  line-height: 1.15;
+  overflow-x: hidden;
+}
+body { min-height: 100vh; }
+.px {
+  font-family: var(--font-px), ui-monospace, monospace;
+  font-weight: 400;
+  text-transform: uppercase;
+  line-height: 1.5;
+  letter-spacing: 0;
+}
+
+.wrap { max-width: 760px; margin: 0 auto; padding: 0 16px 48px; }
+.logo { color: var(--gold); font-size: 14px; padding-top: 12px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+
+.disclosure {
+  background: var(--ink); color: var(--gold); border: 3px solid var(--gold);
+  padding: 8px 12px; text-align: center; font-size: 19px; line-height: 1.2;
+  border-radius: 6px; margin-top: 12px;
+}
+
+.hero h1 {
+  font-family: var(--font-px), monospace; font-weight: 400; font-size: 20px; line-height: 1.5;
+  color: var(--gold); margin: 14px 0 8px; text-shadow: 3px 3px 0 var(--ink);
+}
+.hero p { margin: 0; font-size: 22px; color: var(--parch); }
+
+.panel {
+  background: var(--parch); color: var(--ink); border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink); border-radius: 10px; padding: 18px; margin-top: 18px;
+}
+.panel h2 {
+  font-family: var(--font-px), monospace; font-weight: 400; font-size: 12px;
+  color: var(--red); margin: 0 0 12px; text-transform: uppercase;
+}
+
+ol.steps { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+ol.steps li { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; font-size: 21px; line-height: 1.1; }
+ol.steps .n {
+  width: 30px; height: 30px; border-radius: 50%; background: var(--wood); color: var(--parch);
+  border: 3px solid var(--ink); font-family: var(--font-px), monospace; font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+}
+ol.steps .t { font-family: var(--font-px), monospace; font-size: 8px; color: var(--wood); white-space: nowrap; }
+
+.score { width: 100%; border-collapse: collapse; font-size: 21px; }
+.score td { padding: 6px 8px; border-bottom: 2px dotted var(--parch-d); }
+.score td.pts { text-align: right; font-family: var(--font-px), monospace; font-size: 10px; }
+.rules { margin: 12px 0 0; padding-left: 20px; font-size: 21px; line-height: 1.2; }
+.rules li { margin-bottom: 4px; }
+
+.ready { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; }
+.ready p { margin: 0; font-size: 22px; color: var(--ink); }
+
+.big-btn {
+  font-family: var(--font-px), monospace; font-size: 16px; line-height: 1.3; padding: 18px 22px;
+  border-radius: 12px; border: 4px solid var(--ink); background: var(--gold); color: var(--ink);
+  box-shadow: 0 6px 0 var(--ink); cursor: pointer; text-transform: uppercase; width: 100%; max-width: 420px;
+}
+.big-btn:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 2px 0 var(--ink); }
+.big-btn:disabled { background: var(--grey); cursor: not-allowed; }
+
+.btn {
+  font-family: var(--font-px), monospace; font-size: 10px; line-height: 1.3; padding: 10px 12px;
+  background: var(--gold); color: var(--ink); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer; text-transform: uppercase;
+}
+.btn.ghost { background: var(--parch); }
+.btn:disabled { background: var(--grey); cursor: not-allowed; }
+
+.ghost-link {
+  font-family: var(--font-px), monospace; font-size: 9px; color: var(--parch);
+  background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; text-transform: uppercase;
+}
+
+/* auth form */
+.tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+.tabs button {
+  flex: 1; font-family: var(--font-px), monospace; font-size: 10px; line-height: 1.3; padding: 10px 8px;
+  background: var(--parch-d); color: var(--ink); border: 3px solid var(--ink); cursor: pointer; text-transform: uppercase;
+}
+.tabs button[aria-selected="true"] { background: var(--gold); box-shadow: 0 3px 0 var(--ink); }
+.field { display: grid; gap: 6px; margin-bottom: 12px; }
+.field label { font-family: var(--font-px), monospace; font-size: 9px; text-transform: uppercase; color: var(--wood); }
+.field input[type="text"], .field input[type="password"] {
+  font-family: var(--font-body), monospace; font-size: 24px; line-height: 1.1; background: #fff8e6; color: var(--ink);
+  border: 3px solid var(--ink); padding: 8px; width: 100%;
+}
+.field input:focus-visible, .btn:focus-visible, .big-btn:focus-visible, .tabs button:focus-visible, .ghost-link:focus-visible {
+  outline: 4px solid var(--blue); outline-offset: 2px;
+}
+.hint { margin: 0 0 12px; font-size: 19px; color: var(--wood); line-height: 1.2; }
+.check { display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start; font-size: 19px; line-height: 1.2; margin-bottom: 14px; }
+.check input { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--ink); }
+.error { background: var(--red); color: var(--white); border: 3px solid var(--ink); padding: 8px 10px; font-size: 20px; margin-bottom: 12px; }
+.muted { color: var(--parch); font-size: 22px; }
