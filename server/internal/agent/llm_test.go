@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -184,5 +185,33 @@ func TestLLMVote(t *testing.T) {
 	rep, _ = newLLM(s).Act(context.Background(), req)
 	if _, v := Resolve(req, rep, nil); v != nil && (*v != 0 && *v != 1 && *v != 3) {
 		t.Fatalf("vote outside candidates: %v", *v)
+	}
+}
+
+// Regression: the skip_rate roll used an unseeded RNG, so it drew the same number (0.1245) for
+// every seat in every game. With the server's IntroExtraSkip every AI intro was skipped.
+func TestIntroSkipRollVariesAcrossGamesAndSeats(t *testing.T) {
+	s := &scriptLLM{reply: func(llm.CompletionReq) (string, error) { return "hey all, long day", nil }}
+	a := newLLM(s)
+	a.IntroExtraSkip = 0.15
+	posted, total := 0, 0
+	for g := 0; g < 40; g++ {
+		for seat := 0; seat < 3; seat++ {
+			req := tableReq(game.Intro)
+			req.GameID, req.Seat, req.Round, req.Persona = fmt.Sprintf("game-%d", g), seat, 0, persona(0.05)
+			rep, err := a.Act(context.Background(), req)
+			if err != nil {
+				t.Fatal(err)
+			}
+			subs, _ := Resolve(req, rep, nil)
+			total++
+			if len(subs) == 1 && !subs[0].Skip {
+				posted++
+			}
+		}
+	}
+	// Expected skip chance is 20%; demand at least half posted and at least one skip.
+	if posted < total/2 || posted == total {
+		t.Fatalf("intros posted %d/%d: skip roll is not varying with game/seat", posted, total)
 	}
 }
