@@ -22,6 +22,7 @@ import (
 	"hackathon2026/server/internal/auth"
 	"hackathon2026/server/internal/game"
 	"hackathon2026/server/internal/hub"
+	"hackathon2026/server/internal/stats"
 	"hackathon2026/server/internal/store"
 )
 
@@ -96,6 +97,11 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthHandler(st))
 	authSvc.Routes(mux)
+	var statsStore stats.Store
+	if st != nil {
+		statsStore = st
+	}
+	stats.New(statsStore, authSvc.UserID, cfg.HumansPerGame, cfg.Seats()).Routes(mux)
 	mux.Handle("GET /ws", games.Handler(authSvc.UserID, listEnv("WS_ORIGINS")))
 	mux.HandleFunc("GET /api/config", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

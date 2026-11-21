@@ -120,3 +120,26 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     phase. Write errors are logged, never shown to players.
 42. **Note markers (`note.set`) are implemented server-side** (validated, persisted as `note_events`, returned in the
     snapshot to their owner only). There is no UI yet (M5).
+
+## Leaderboard and stats page (M4/M6)
+
+43. **Default leaderboard sort is detection ("found the human")**, closing the open point in 10. `?sort=recognizability|points`
+    switch it; `points` means points per game. Ties go to total points, then more games; true ties share a rank (1, 1, 3) and
+    are listed by username. All comparisons are exact integer cross-multiplication, not floats.
+44. **`GET /api/leaderboard` returns the top 10 ranked rows plus `me`** (rank on all three sort keys, `games_needed` until
+    ranked, and the last 5 real games for the "recent games" table). The page draws the gap marker when `me` is not in the
+    top 10 (12). Players with games but fewer than 5 get an unranked row under the gap.
+45. **Baselines come from the game config, not constants.** Detection/recognizability: `(HUMANS−1)/(SEATS−1)` (25% at 2+3).
+    Fool rate overall, per difficulty and per prompt version: `AI/(SEATS−1)` (75% at 2+3) — that is what random voting gives
+    under SPEC §2.3's definition, not the 25% the mockup's footnote shows.
+46. **Per-model fool rate is per seat:** votes on that model's seats ÷ Σ over its games of (human votes × seats it held).
+    The SPEC definition (stolen ÷ all human votes) would rise with how many seats a model had at the table, so models would
+    not be comparable across lineups. Its baseline is `1/(SEATS−1)` (25%). The response also carries `per_seat` for all AI
+    seats on the same scale. Every group returns `stolen`, the denominator and the game count so small samples are visible.
+47. **Difficulty and prompt version come from `games`**, the model from the target seat's `seats.model_id`. Stub games show
+    as `stub` and are not hidden.
+48. **Both endpoints need a signed-in user** (401 otherwise, 503 without a database). Stats are not public, to keep usernames
+    behind login. All queries read `real_games`, and only votes cast by `kind='human'` seats count. Leaderboard rows are keyed
+    by user id, so a deleted (anonymized) account drops out.
+49. **Aggregation is done per request in SQL, ranking in Go** (`stats.Rank`/`stats.Build`, pure and unit-tested). Fine for a
+    hackathon-sized table; add a materialized view only if it gets slow.

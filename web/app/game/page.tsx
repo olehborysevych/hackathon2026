@@ -429,6 +429,7 @@ function ResultView({ s, result }: { s: State; result: GameResult }) {
       </section>
       <div className="actions">
         <button className="btn ghost" onClick={() => router.push("/")}>Lobby</button>
+        <button className="btn ghost" onClick={() => router.push("/stats")}>Stats</button>
         <button className="btn" onClick={() => router.push("/match")}>Play again</button>
       </div>
     </>

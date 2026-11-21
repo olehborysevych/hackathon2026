@@ -61,7 +61,10 @@ export default function StartPage() {
     <main className="wrap">
       <div className="topbar">
         <div className="px logo">Find the Human</div>
-        <button className="ghost-link" onClick={logout}>Log out</button>
+        <div style={{ display: "flex", gap: 14 }}>
+          <button className="ghost-link" onClick={() => router.push("/stats")}>Stats</button>
+          <button className="ghost-link" onClick={logout}>Log out</button>
+        </div>
       </div>
       <Disclosure />
 
@@ -108,6 +111,7 @@ export default function StartPage() {
         <p>Signed in as <b>{me.username}</b></p>
         <button className="big-btn" onClick={() => router.push("/match")}>Ready to play</button>
         <p>You&apos;ll sit down with the next human in the queue.</p>
+        <button className="btn ghost" onClick={() => router.push("/stats")}>Leaderboard &amp; stats</button>
       </section>
     </main>
   );
