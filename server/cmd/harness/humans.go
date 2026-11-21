@@ -3,7 +3,7 @@ package main
 // Human calibration replies for the judge and the lineup test. CAVEAT: these were written by an
 // LLM (Claude) imitating people at a Berlin hackathon on a Saturday afternoon, not collected from
 // real players. They calibrate the judge against "plausible human" text, not against real human
-// text; replace with consented playtest replies as soon as there are some (DECISIONS 27).
+// text; replace with consented playtest replies as soon as there are some (DECISIONS 67).
 var humanReplies = map[string][]string{
 	"B01": {"yes. unfortunately", "Yep, 100% meat", "yea lol are you?"},
 	"B02": {"banana 🍌 happy now", "nice try", "lol no. oldest trick in the book"},

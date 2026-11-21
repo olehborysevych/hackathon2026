@@ -242,6 +242,34 @@ var rows = []row{
 		}
 		return fmtMean(xs, 1)
 	}},
+	{"**judge p_human excl. sincere-valve cases**", func(d dirData) string {
+		var xs []float64
+		for _, r := range d.recs {
+			if judged(r) && r.Expect != "valve" {
+				xs = append(xs, float64(r.Judge.PHuman))
+			}
+		}
+		return fmtMean(xs, 1)
+	}},
+	{"judge p_human by judge model", func(d dirData) string {
+		by := map[string][]float64{}
+		for _, r := range d.recs {
+			if judged(r) {
+				by[shortModel(r.JudgeModel)] = append(by[shortModel(r.JudgeModel)], float64(r.Judge.PHuman))
+			}
+		}
+		var ks []string
+		for k := range by {
+			ks = append(ks, k)
+		}
+		sort.Strings(ks)
+		var parts []string
+		for _, k := range ks {
+			m, _ := meanCI(by[k])
+			parts = append(parts, fmt.Sprintf("%s %.0f (%d)", k, m, len(by[k])))
+		}
+		return strings.Join(parts, "; ")
+	}},
 	{"judge p_human ≥ 50", func(d dirData) string {
 		return count(d.recs, judged, func(r Record) bool { return r.Judge.PHuman >= 50 })
 	}},

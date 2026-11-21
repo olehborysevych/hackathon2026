@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"regexp"
+	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -17,7 +18,46 @@ type MessagePlan struct {
 	AllowEmoji  bool   // emoji allowed in this message (else stripped in code)
 	Quirk       string // the one quirk allowed in this message, or ""
 	DropApos    bool   // persona with no punctuation drops apostrophes in this message
+	AllowFiller bool   // "lol"/"haha"/"lmao" allowed (models put "lol" in every casual message)
+	Angle       string // how to take this message (sampled per seat, so 3 seats don't give the modal answer)
 	AvoidStarts []string
+}
+
+type angle struct {
+	text string
+	w    map[string]float64 // weight by mood; missing mood = 1
+}
+
+// angles break cross-seat convergence: v2b seats answered the same question with the same modal reply
+// ("just a bagel and coffee") because each samples the same distribution. A per-seat angle moves them apart.
+var angles = []angle{
+	{"answer it straight", map[string]float64{"friendly": 2}},
+	{"answer with something specific to you, not the first or most typical answer that comes to mind", nil},
+	{"keep it very short, a few words", map[string]float64{"bored": 2, "distracted": 2}},
+	{"answer, then add a small unrelated detail about your day", map[string]float64{"distracted": 1.5, "friendly": 1.5}},
+	{"answer with a bit of complaint or dry sarcasm", map[string]float64{"sarcastic": 2.5, "bored": 1.5, "friendly": 0.3}},
+	{"answer briefly and turn a question back to them", map[string]float64{"friendly": 1.5, "sarcastic": 0.5}},
+}
+
+func pickAngle(mood string, rng *rand.Rand) string {
+	var total float64
+	ws := make([]float64, len(angles))
+	for i, a := range angles {
+		w := 1.0
+		if v, ok := a.w[mood]; ok {
+			w = v
+		}
+		ws[i] = w
+		total += w
+	}
+	x := rng.Float64() * total
+	for i, w := range ws {
+		if x < w {
+			return angles[i].text
+		}
+		x -= w
+	}
+	return angles[0].text
 }
 
 // PlanMessage samples a per-message plan from the persona. maxLen is the task's char cap.
@@ -26,8 +66,9 @@ func PlanMessage(p Persona, rng *rand.Rand, maxLen int, ownPrev []string) Messag
 	if avg <= 0 {
 		avg = 50
 	}
-	// Log-normal around the persona average: mostly short, sometimes a proper answer.
-	l := avg * math.Exp(rng.NormFloat64()*0.6-0.18)
+	// Log-normal, median ≈ 0.65 × avg_len, mean ≈ 0.77 × avg_len: mostly short, sometimes a proper
+	// answer. Persona avg_len values ran long (v2a replies averaged 54 chars vs 35 in the human set).
+	l := avg * math.Exp(rng.NormFloat64()*0.6-0.43)
 	if maxLen <= 0 {
 		maxLen = 200
 	}
@@ -44,7 +85,18 @@ func PlanMessage(p Persona, rng *rand.Rand, maxLen int, ownPrev []string) Messag
 		mp.Quirk = p.Quirks[rng.IntN(len(p.Quirks))]
 	}
 	mp.DropApos = p.Typing.Punctuation == "none" && rng.Float64() < 0.6
+	mp.AllowFiller = rng.Float64() < 0.3
 	mp.AvoidStarts = recentOpeners(ownPrev, 3)
+	return mp
+}
+
+// WithAngle adds a sampled angle and a stock-opener ban to the plan (v2 Features.Angle).
+func (mp MessagePlan) WithAngle(p Persona, rng *rand.Rand) MessagePlan {
+	mp.Angle = pickAngle(p.Mood, rng)
+	// "just …" opened 69 of ~1,100 v2b answers across all three seats; ban it half the time.
+	if rng.Float64() < 0.5 && !slices.Contains(mp.AvoidStarts, "just") {
+		mp.AvoidStarts = append(mp.AvoidStarts, "just")
+	}
 	return mp
 }
 
@@ -73,6 +125,9 @@ func firstWord(s string) string {
 // StyleHint renders the plan as one line for the seat prompt.
 func (mp MessagePlan) StyleHint() string {
 	var parts []string
+	if mp.Angle != "" {
+		parts = append(parts, mp.Angle)
+	}
 	parts = append(parts, "about "+itoa(mp.TargetLen)+" characters (a rough guide, not a rule)")
 	if mp.Quirk != "" {
 		parts = append(parts, "you may use this habit once: "+mp.Quirk)
@@ -81,6 +136,9 @@ func (mp MessagePlan) StyleHint() string {
 	}
 	if !mp.AllowEmoji {
 		parts = append(parts, "no emoji")
+	}
+	if !mp.AllowFiller {
+		parts = append(parts, "no lol/haha/lmao")
 	}
 	if len(mp.AvoidStarts) > 0 {
 		parts = append(parts, "don't start with: "+strings.Join(mp.AvoidStarts, ", "))
@@ -116,6 +174,9 @@ func ApplyStyle(s string, p Persona, mp MessagePlan, rng *rand.Rand, protect []s
 	}
 	if !mp.AllowEmoji {
 		s = stripEmoji(s, protectEmoji)
+	}
+	if !mp.AllowFiller {
+		s = stripFiller(s)
 	}
 	switch p.Typing.Case {
 	case "lower":
@@ -185,6 +246,30 @@ func EmojiIn(s string) string {
 		}
 	}
 	return b.String()
+}
+
+var (
+	fillerEndRe   = regexp.MustCompile(`(?i)[\s,]*\b(lol|lmao|lmfao|haha+)\b[\s.!?]*$`)
+	fillerStartRe = regexp.MustCompile(`(?i)^(lol|lmao|lmfao|haha+)\b[\s,.!]*`)
+	fillerMidRe   = regexp.MustCompile(`(?i)\s\b(lol|lmao|lmfao)\b([.,!?]*)(\s)`)
+)
+
+// stripFiller removes "lol"-type fillers at the start/end (and standalone mid-sentence ones),
+// keeping a "?" the filler swallowed. It never empties a message.
+func stripFiller(s string) string {
+	orig := s
+	q := strings.HasSuffix(strings.TrimSpace(s), "?")
+	s = fillerEndRe.ReplaceAllString(s, "")
+	s = fillerStartRe.ReplaceAllString(s, "")
+	s = fillerMidRe.ReplaceAllString(s, "$2$3")
+	s = strings.TrimSpace(s)
+	if s == "" || !strings.ContainsFunc(s, unicode.IsLetter) && !strings.ContainsFunc(s, unicode.IsDigit) {
+		return orig
+	}
+	if q && !strings.HasSuffix(s, "?") {
+		s = strings.TrimRight(s, ".!,") + "?"
+	}
+	return s
 }
 
 var qwerty = map[rune]string{

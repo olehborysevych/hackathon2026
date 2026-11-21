@@ -59,6 +59,7 @@ type Record struct {
 	Err         string   `json:"err,omitempty"`
 	Human       bool     `json:"human,omitempty"`
 	Judge       *Judge   `json:"judge,omitempty"`
+	JudgeModel  string   `json:"judge_model,omitempty"`
 	JudgeCost   float64  `json:"judge_cost,omitempty"`
 }
 
@@ -149,10 +150,12 @@ func main() {
 		timeout     = flag.Duration("timeout", 40*time.Second, "per-call pipeline deadline")
 		temp        = flag.Float64("temp", 0, "seat temperature (0 = pipeline default 0.9)")
 		features    = flag.String("features", "", "override v2 features: comma list of -name to disable (e.g. -style,-plan)")
-		judgeModel  = flag.String("judge-model", "", "LLM judge slug (empty = no judge)")
+		judgeModel  = flag.String("judge-model", "", "LLM judge slug(s), comma-separated pool (empty = no judge)")
+		judgeRPM    = flag.Int("judge-rpm", 18, "max requests/min per judge model (OpenRouter new accounts: 20)")
 		judgeEffort = flag.String("judge-effort", "low", "judge reasoning effort (\"\" = off)")
-		judgePar    = flag.Int("judge-parallel", 4, "concurrent judge calls (provider rate limits are tight)")
+		judgePar    = flag.Int("judge-parallel", 12, "concurrent judge calls (provider rate limits are tight)")
 		judgeRuns   = flag.Int("judge-runs", 1, "judge only runs with index < N (cost cap)")
+		lineupRuns  = flag.Int("lineup-runs", 3, "lineup only runs with index < N")
 		lineup      = flag.Bool("lineup", false, "run the lineup test (needs -judge-model)")
 		outDir      = flag.String("out", "", "output dir for records.jsonl/lineup.jsonl/meta.json")
 		label       = flag.String("label", "", "config label for the report")
@@ -177,14 +180,21 @@ func main() {
 	bud := &budget{max: *maxCost}
 	now := harnessNow()
 	gctx := getenv("GAME_CONTEXT", "Hackathon at the Innovation Hub, Berlin")
-	j := &judger{llm: client, model: *judgeModel, gameContext: gctx, now: now, bud: bud, effort: *judgeEffort}
+	j := &judger{llm: client, models: strings.Split(*judgeModel, ","), gameContext: gctx, now: now, bud: bud, effort: *judgeEffort, rpm: *judgeRPM}
 
 	if *mode == "humans" {
 		if *judgeModel == "" {
 			fmt.Fprintln(os.Stderr, "-mode humans needs -judge-model")
 			os.Exit(1)
 		}
-		recs := humanRecords()
+		// Every judge in the pool scores every human reply, so the human baseline covers each judge.
+		var recs []Record
+		for _, m := range j.models {
+			for _, r := range humanRecords() {
+				r.JudgeModel = m
+				recs = append(recs, r)
+			}
+		}
 		j.judgeAll(recs, *judgePar, 1<<30)
 		writeOut(*outDir, recs, nil, Meta{Config: "human", JudgeModel: *judgeModel, Started: time.Now(), JudgeCost: bud.judge})
 		summarize([]string{*outDir})
@@ -224,6 +234,8 @@ func main() {
 				f.EchoGuard = false
 			case "-guard":
 				f.CriticGuard = false
+			case "-angle":
+				f.Angle = false
 			}
 		}
 		cfg.Features = &f
@@ -316,7 +328,7 @@ func main() {
 	}
 	var lus []LineupRec
 	if *lineup && *judgeModel != "" {
-		lus = j.lineups(recs, *judgePar, *judgeRuns)
+		lus = j.lineups(recs, *judgePar, *lineupRuns)
 	}
 	if !*quiet {
 		for _, r := range recs {
