@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Screen · Synthwave Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Synthwave dystopia variant. Departs from SPEC §8's 16-colour tavern palette on purpose (for review).
+     Flat neon fills and hard offset shadows only — no blur. */
+  :root{
+    --void:#07020f; --night:#0d0221; --panel:#14083a; --panel-2:#22105a;
+    --neon-pink:#ff2a6d; --neon-cyan:#05d9e8; --neon-yellow:#ffd319; --neon-purple:#b967ff; --neon-green:#05ffa1;
+    --chrome:#f0f0ff; --dim:#6c6a8a;
+  }
+  body{background:var(--void);color:var(--chrome)}
+  .room{position:relative;max-width:1000px;margin:0 auto;padding:0 16px 40px}
+  .content{position:relative;z-index:1}
+  .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--neon-pink);font-size:13px;text-shadow:2px 2px 0 var(--neon-cyan)}
+
+  .sign-wrap{display:flex;flex-direction:column;align-items:center;margin-top:4px}
+  .ropes{display:flex;justify-content:space-between;width:260px}
+  .ropes i{display:block;width:3px;height:22px;background:var(--neon-cyan)}
+  .sign{background:var(--panel);color:var(--chrome);border:3px solid var(--neon-cyan);box-shadow:5px 5px 0 var(--neon-pink);padding:10px 22px;text-align:center;min-width:260px}
+  .sign .px{font-size:13px;color:var(--neon-yellow);text-shadow:2px 2px 0 var(--neon-pink)}
+  .sign .hint{margin:4px 0 0;font-size:20px;color:var(--chrome)}
+  .disclosure{margin:14px auto 0;max-width:620px;background:var(--void);color:var(--neon-yellow);border:2px dashed var(--neon-yellow);padding:8px 12px;text-align:center;font-size:19px;line-height:1.2}
+
+  .stage-wrap{position:relative;width:100%;margin-top:8px}
+  .stage{position:absolute;left:50%;top:0;width:820px;height:820px;transform:translateX(-50%) scale(var(--s,1));transform-origin:top center}
+
+  /* scene */
+  .scene{position:absolute;left:0;top:0;width:820px;height:820px;overflow:hidden;background:var(--night)}
+  .sun{position:absolute;left:0;top:0}
+  .skyline{position:absolute;left:0;right:0;top:0;height:430px}
+  .skyline i{position:absolute;bottom:0;background:var(--void);border-top:2px solid var(--neon-purple)}
+  .skyline b{position:absolute;width:6px;height:8px;background:var(--neon-yellow)}
+  .floor{position:absolute;left:0;right:0;top:430px;bottom:0;background:var(--night)}
+  .floor svg{position:absolute;left:0;top:0;width:820px;height:390px}
+  .floor i{position:absolute;left:0;right:0;height:2px;background:var(--neon-pink)}
+  .neon{position:absolute;padding:6px 10px;font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.5;text-transform:uppercase;border:3px solid var(--neon-cyan);color:var(--neon-cyan);background:var(--void);box-shadow:3px 3px 0 var(--neon-pink)}
+  .neon.pink{color:var(--neon-pink);border-color:var(--neon-pink);box-shadow:3px 3px 0 var(--neon-cyan)}
+  .tube{position:absolute;width:6px;background:var(--neon-cyan)}
+  .wire{position:absolute;left:0;right:0;top:0;height:430px;pointer-events:none}
+  .scan{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(to bottom, rgba(0,0,0,.18) 0 2px, transparent 2px 4px)}
+
+  /* table: a holo-glass disc with a neon rim */
+  .table{position:absolute;left:170px;top:310px;width:480px;height:220px;border-radius:50%;background:var(--panel);
+    border:6px solid var(--neon-cyan);box-shadow:0 18px 0 var(--neon-pink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 60px;color:var(--chrome)}
+  .table::before{content:"";position:absolute;left:24px;right:24px;top:24px;bottom:24px;border-radius:50%;border:2px dashed var(--neon-purple)}
+  .table .px{color:var(--neon-yellow);font-size:11px;margin-bottom:8px;position:relative}
+  .table .qtext{font-size:21px;line-height:1.1;margin:0;position:relative}
+  .table .timer{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--neon-cyan);margin-top:8px;position:relative}
+  .table .bar{width:60%;margin-top:6px;position:relative}
+  .table .bar{border-color:var(--neon-cyan);background:var(--void)}
+  .table .bar i{background:var(--neon-green)}
+
+  /* seats */
+  .seat-at{position:absolute;transform:translate(-50%,-50%) scale(var(--k,1));width:118px}
+  .seat-at .seat{padding:6px 4px 6px;background:var(--panel);color:var(--chrome);border:2px solid var(--neon-cyan);box-shadow:3px 3px 0 var(--neon-pink)}
+  .seat-at .seat.me{border-color:var(--neon-yellow);box-shadow:3px 3px 0 var(--neon-cyan)}
+  .seat-at canvas.sprite{width:56px;height:56px}
+  .seat-at .alias{font-size:8px;margin:4px 0 2px;color:var(--chrome)}
+  .seat-at .marks{gap:2px;margin-top:4px}
+  .seat-at .mk{min-width:22px;font-size:6px;padding:2px;background:var(--void);color:var(--neon-cyan);border:1px solid var(--neon-cyan)}
+  .seat-at .mk.on{background:var(--neon-cyan);color:var(--void)}
+  .seat-at .note{display:none}
+  .seat-at .tag{font-size:6px;padding:2px 3px;background:var(--neon-purple);color:var(--void);border:none}
+  .seat-at .tag.you{background:var(--neon-yellow)}
+  .seat-at .tag.ai{background:var(--neon-pink);color:var(--chrome)}
+  .seat-at .tag.human{background:var(--neon-green);color:var(--void)}
+
+  /* speech: glass panels with neon edges */
+  .bub{position:absolute;transform:translate(-50%,-50%);width:200px;background:var(--panel);color:var(--chrome);border:2px solid var(--neon-cyan);box-shadow:4px 4px 0 var(--neon-pink);padding:8px 10px;font-size:20px;line-height:1.1;z-index:2}
+  .bub .who{display:block;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--neon-cyan);margin-bottom:4px;text-transform:uppercase}
+  .bub.empty{background:var(--void);color:var(--dim);border-style:dashed;box-shadow:none}
+  .bub.q{border-color:var(--neon-pink)}
+  .bub.q .who{color:var(--neon-pink)}
+  .bub.skip{color:var(--dim)}
+  .bub::before,.bub::after{content:"";position:absolute;width:0;height:0;border-style:solid}
+  .tail-b::before{left:50%;bottom:-14px;margin-left:-9px;border-width:11px 9px 0 9px;border-color:var(--neon-cyan) transparent transparent transparent}
+  .tail-b::after{left:50%;bottom:-10px;margin-left:-6px;border-width:8px 6px 0 6px;border-color:var(--panel) transparent transparent transparent}
+  .tail-t::before{left:50%;top:-14px;margin-left:-9px;border-width:0 9px 11px 9px;border-color:transparent transparent var(--neon-cyan) transparent}
+  .tail-t::after{left:50%;top:-10px;margin-left:-6px;border-width:0 6px 8px 6px;border-color:transparent transparent var(--panel) transparent}
+
+  .me-box{width:600px;transform:translate(-50%,0);top:672px;padding:12px 14px;font-size:20px;border-color:var(--neon-yellow);box-shadow:4px 4px 0 var(--neon-cyan)}
+  .me-box::before{border-bottom-color:var(--neon-yellow)}
+  .me-box::after{border-bottom-color:var(--panel)}
+  .me-box .kick{color:var(--neon-pink)}
+  .me-box .hint{margin:0 0 6px;color:var(--chrome)}
+  .me-box .qq{background:var(--void);color:var(--chrome);padding:4px 8px;border-left-color:var(--neon-pink)}
+  .me-box .ta{min-height:70px;max-width:none;background:var(--void);color:var(--neon-green);border:2px solid var(--neon-cyan)}
+  .me-box .count{color:var(--neon-cyan)}
+  .me-box .row{margin-top:8px}
+  .btn{background:var(--neon-pink);color:var(--void);border:2px solid var(--chrome);box-shadow:3px 3px 0 var(--neon-cyan)}
+  .btn.ghost{background:var(--void);color:var(--neon-cyan);border-color:var(--neon-cyan)}
+  .btn:disabled{background:var(--dim);color:var(--void)}
+
+  @media (max-width:640px){
+    .bub{width:150px;font-size:17px;padding:6px 8px}
+    .bub .who{font-size:6px}
+    .seat-at{width:96px}
+    .seat-at canvas.sprite{width:44px;height:44px}
+    .table .qtext{font-size:17px}
+    .sign{min-width:0;width:100%}
+    .ropes{width:200px}
+    .me-box{width:340px}
+  }
+</style>
+</head>
+<body>
+<div class="room">
+  <div class="content" id="app"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+// Stage 820 x 820 px. Same layout as game-screen.html; only the scene and skin change.
+const SEAT_POS = {
+  0: [410, 590, 1.12],
+  1: [300, 255, 0.82],
+  2: [520, 255, 0.82],
+  3: [118, 430, 1.0],
+  4: [702, 430, 1.0]
+};
+const BUB_POS = {1: [300, 118], 2: [520, 118], 3: [118, 298], 4: [702, 298]};
+const pctX = v => (v / 820 * 100) + '%';
+const pctY = v => (v / 820 * 100) + '%';
+
+function fitStage(){
+  const wrap = document.querySelector('.stage-wrap'); if (!wrap) return;
+  const s = Math.min(1, wrap.clientWidth / 820);
+  wrap.style.setProperty('--s', s);
+  wrap.style.height = (820 * s) + 'px';
+}
+window.addEventListener('resize', fitStage);
+
+function latestPerSeat(phase){
+  const latest = {};
+  transcriptEntries(phase).forEach(e => { if (e.t === 'a' && e.text === null) return; latest[e.seat] = e; });
+  return latest;
+}
+function bubbleHTML(i, e){
+  const [x, y] = BUB_POS[i];
+  const pos = `left:${pctX(x)};top:${pctY(y)}`;
+  if (!e) return `<div class="bub empty tail-b" style="${pos}"><span class="who">${esc(SEATS[i].alias)}</span>…</div>`;
+  const cls = ['bub', 'tail-b', e.t === 'q' ? 'q' : '', e.t === 'a' && !e.text ? 'skip' : ''].join(' ');
+  const body = e.t === 'q' ? '? ' + esc(e.text) : esc(e.text || '—');
+  const label = e.t === 'q' ? 'asks' : (e.t === 'a' ? 'answers' : 'intro');
+  return `<div class="${cls}" style="${pos}"><span class="who">${esc(SEATS[i].alias)} · ${label}</span>${body}</div>`;
+}
+
+// Seeded tiny PRNG so the skyline is the same every render.
+function skylineHTML(){
+  const r = mulberry32(7);
+  let html = '';
+  let x = 0;
+  while (x < 820){
+    const w = 28 + Math.floor(r() * 46);
+    const h = 60 + Math.floor(r() * 220);
+    html += `<i style="left:${x}px;width:${w}px;height:${h}px"></i>`;
+    for (let k = 0; k < 4; k++){
+      if (r() < 0.6) html += `<b style="left:${x + 6 + Math.floor(r() * (w - 12))}px;bottom:${10 + Math.floor(r() * (h - 20))}px"></b>`;
+    }
+    x += w + 2 + Math.floor(r() * 6);
+  }
+  return html;
+}
+// Striped sun: horizontal bands, lower bands cut out (classic retro sun), no gradient.
+function sunHTML(){
+  const cx = 410, top = 150, R = 120;
+  let html = '';
+  for (let y = top; y < 430; y += 14){
+    const dy = y + 7 - (top + R);
+    const half = Math.sqrt(Math.max(0, R * R - dy * dy));
+    if (half < 2) continue;
+    const frac = (y - top) / (2 * R);
+    if (frac > 0.55 && Math.floor((y - top) / 14) % 2 === 0) continue;
+    const color = frac < 0.5 ? 'var(--neon-yellow)' : 'var(--neon-pink)';
+    html += `<i style="position:absolute;left:${cx - half}px;width:${half * 2}px;top:${y}px;height:10px;background:${color}"></i>`;
+  }
+  return `<div class="sun">${html}</div>`;
+}
+function sceneHTML(){
+  // floor grid: lines converge on a vanishing point at the horizon
+  const vx = 410, vy = 0;
+  let verticals = '';
+  for (let k = -12; k <= 12; k++){
+    verticals += `<line x1="${vx}" y1="${vy}" x2="${vx + k * 110}" y2="390" stroke="var(--neon-purple)" stroke-width="2"/>`;
+  }
+  const floorLines = Array.from({length: 9}, (_, k) => {
+    const t = (k + 1) / 10;
+    const y = 390 * Math.pow(t, 1.5);
+    return `<i style="top:${y.toFixed(1)}px"></i>`;
+  }).join('');
+  return `<div class="scene">
+    ${sunHTML()}
+    <div class="skyline">${skylineHTML()}</div>
+    <div class="neon" style="left:40px;top:90px">Noodle<br>Bar 24/7</div>
+    <div class="neon pink" style="right:40px;top:150px;text-align:right">Signal<br>0%</div>
+    <div class="tube" style="left:24px;top:240px;height:140px"></div>
+    <div class="tube" style="right:24px;top:300px;height:110px;background:var(--neon-pink)"></div>
+    <div class="floor">${floorLines}<svg viewBox="0 0 820 390" preserveAspectRatio="none">${verticals}</svg></div>
+    <div class="scan"></div>
+  </div>`;
+}
+
+function renderGame(phase){
+  const p = PHASES[phase], c = composeData(phase), latest = latestPerSeat(phase);
+  const app = document.getElementById('app');
+  const qShown = (phase === 'ANSWER') ? QUESTIONS[1] : null;
+  const centre = qShown
+    ? `<div class="px">${esc(p.title)}</div><p class="qtext">“${esc(qShown.text)}”</p><div class="px timer" data-timer></div><div class="bar"><i data-bar></i></div>`
+    : `<div class="px">${esc(p.title)}</div><p class="qtext">${esc(p.hint)}</p><div class="px timer" data-timer></div><div class="bar"><i data-bar></i></div>`;
+
+  app.innerHTML = `
+  <header class="head">
+    <div class="px logo">Find the Human</div>
+    <div class="px" style="font-size:9px;color:var(--neon-cyan)">Round 1 / 2 · ${phase}</div>
+  </header>
+
+  <div class="sign-wrap">
+    <div class="ropes"><i></i><i></i></div>
+    <div class="sign"><div class="px">${esc(p.title)}</div><p class="hint">${esc(p.hint)}</p></div>
+  </div>
+
+  <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+  <div class="stage-wrap"><section class="stage">
+    ${sceneHTML()}
+    <div class="table">${centre}</div>
+
+    ${[1, 2, 3, 4].map(i => `<div class="seat-at" style="left:${pctX(SEAT_POS[i][0])};top:${pctY(SEAT_POS[i][1])};--k:${SEAT_POS[i][2]}">
+      ${seatHTML(i, {reveal: phase === 'RESULT', selectable: phase === 'VOTE'})}
+    </div>`).join('')}
+
+    <div class="seat-at" style="left:${pctX(SEAT_POS[0][0])};top:${pctY(SEAT_POS[0][1])};--k:${SEAT_POS[0][2]}">
+      ${seatHTML(0, {marks: false})}
+    </div>
+
+    ${[1, 2, 3, 4].map(i => bubbleHTML(i, latest[i])).join('')}
+
+    <div class="bub me-box tail-t">${composeHTML(c)}</div>
+  </section></div>`;
+  afterRender(app, phase);
+  fitStage();
+}
+
+mountControls(renderGame);
+</script>
+</body>
+</html>

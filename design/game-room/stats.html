@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stats · Find the Human</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Stats page mockup: your standing, the global leaderboard, and fool-rate stats (SPEC §2.4, §7). */
+  .wrap{max-width:980px;margin:0 auto;padding:0 16px 48px}
+  .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 6px}
+  .logo{color:var(--gold);font-size:13px}
+  .nav{display:flex;gap:8px;flex-wrap:wrap}
+  .nav a{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--ink);background:var(--parch);border:3px solid var(--ink);padding:8px 10px;text-decoration:none;border-radius:8px}
+  .nav a.on{background:var(--gold)}
+  .disclosure{margin:12px 0 0;background:var(--ink);color:var(--gold);border:3px solid var(--gold);padding:8px 12px;text-align:center;font-size:19px;line-height:1.2;border-radius:6px}
+
+  section.card{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:10px;padding:16px;margin-top:20px}
+  section.card > h2{font-family:'Press Start 2P',monospace;font-weight:400;font-size:12px;color:var(--red);margin:0 0 12px;text-transform:uppercase}
+  .sub{margin:0 0 12px;font-size:20px}
+
+  /* standing */
+  .standing{display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:center}
+  .rank-badge{width:118px;height:118px;border-radius:50%;background:var(--wood);border:4px solid var(--ink);box-shadow:0 5px 0 var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--parch);text-align:center}
+  .rank-badge .px{font-size:22px;color:var(--gold)}
+  .rank-badge small{font-family:'Press Start 2P',monospace;font-size:7px;margin-top:4px}
+  .standing p{margin:0 0 6px;font-size:22px;line-height:1.15}
+  .metric-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .tab{font-family:'Press Start 2P',monospace;font-size:8px;padding:7px 9px;border:3px solid var(--ink);background:var(--parch-d);color:var(--ink);border-radius:8px;cursor:pointer}
+  .tab.on{background:var(--gold)}
+  .notice{font-size:19px;color:var(--purple)}
+
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  .kpi{background:var(--wood-d);color:var(--parch);border:3px solid var(--ink);border-radius:8px;padding:10px;text-align:center}
+  .kpi .px{font-size:7px;color:var(--parch-d);display:block;margin-bottom:6px;line-height:1.5}
+  .kpi b{font-family:'Press Start 2P',monospace;font-size:15px;font-weight:400;color:var(--gold)}
+  .kpi small{display:block;font-size:17px;color:var(--parch-d);margin-top:4px}
+
+  /* history */
+  table{width:100%;border-collapse:collapse;font-size:20px}
+  th,td{text-align:left;padding:7px 8px;border-bottom:2px dotted var(--parch-d);vertical-align:middle}
+  th{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--wood);font-weight:400}
+  td.num,th.num{text-align:right}
+  .tick{font-family:'Press Start 2P',monospace;font-size:8px;padding:3px 5px;border-radius:6px;border:2px solid var(--ink)}
+  .tick.yes{background:var(--green)}
+  .tick.no{background:var(--parch-d)}
+  .mutual{background:var(--gold);color:var(--ink)}
+
+  /* leaderboard */
+  .board td.rank{font-family:'Press Start 2P',monospace;font-size:9px;width:58px}
+  .board tr.me{background:var(--gold)}
+  .board tr.me td{border-bottom-color:var(--ink)}
+  .board tr.baseline td{background:var(--parch-d);font-size:18px;font-style:italic}
+  .bar{height:12px;background:var(--parch-d);border:2px solid var(--ink);border-radius:6px;min-width:90px}
+  .bar i{display:block;height:100%;background:var(--green);border-radius:4px}
+  .bar.base{position:relative}
+  .bar.base::after{content:"";position:absolute;left:25%;top:-4px;bottom:-4px;width:3px;background:var(--red)}
+
+  /* fool rate */
+  .groups{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .group h3{font-family:'Press Start 2P',monospace;font-weight:400;font-size:9px;margin:0 0 8px;text-transform:uppercase;color:var(--wood)}
+  .row{display:grid;grid-template-columns:120px 1fr 52px;gap:8px;align-items:center;margin-bottom:8px;font-size:19px}
+  .row .bar{height:14px}
+  .row .bar i{background:var(--red)}
+  .big{font-family:'Press Start 2P',monospace;font-size:22px;color:var(--red)}
+  .flag{font-size:18px;color:var(--purple);margin-top:10px}
+
+  @media (max-width:700px){
+    .standing{grid-template-columns:1fr;justify-items:center;text-align:center}
+    .kpis{grid-template-columns:1fr 1fr}
+    .groups{grid-template-columns:1fr}
+    .board td.hide-s, .board th.hide-s{display:none}
+    .row{grid-template-columns:90px 1fr 46px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="head">
+    <div class="px logo">Find the Human · Stats</div>
+    <nav class="nav"><a class="on" href="#me">My stats</a><a href="#board">Leaderboard</a><a href="#fool">Fool rate</a></nav>
+  </header>
+  <nav class="flow" aria-label="Prototype screens"><a href="start.html">Start</a><a href="matching.html">Matching</a><a href="game-screen.html">Table</a><a href="result.html">Result</a><a class="on" href="stats.html">Stats</a></nav>
+  <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+  <section class="card" id="me">
+    <h2>Your standing</h2>
+    <div class="metric-tabs" id="metric-tabs" role="tablist" aria-label="Rank by"></div>
+    <div class="standing">
+      <div class="rank-badge"><span class="px" id="my-rank">—</span><small id="my-of">of —</small></div>
+      <div>
+        <p id="my-sentence"></p>
+        <p class="notice" id="my-notice"></p>
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="kpi"><span class="px">Games</span><b id="k-games">12</b></div>
+      <div class="kpi"><span class="px">Points</span><b id="k-points">14</b></div>
+      <div class="kpi"><span class="px">Found the human</span><b id="k-det">58%</b><small>6 of 12 · baseline 25%</small></div>
+      <div class="kpi"><span class="px">Was found</span><b id="k-rec">33%</b><small>4 of 12 · baseline 25%</small></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Your recent games</h2>
+    <table>
+      <thead><tr><th>Game</th><th>You found</th><th>Found you</th><th>Mutual</th><th class="num">Points</th></tr></thead>
+      <tbody id="history"></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="board">
+    <h2>Global leaderboard</h2>
+    <p class="sub">Ranked after 5 games. Ordered by <span id="board-metric">found the human</span>, ties by points.</p>
+    <table class="board">
+      <thead><tr><th>#</th><th>Player</th><th class="num">Games</th><th class="num hide-s">Points</th><th>Found the human</th><th class="hide-s">Was found</th></tr></thead>
+      <tbody id="board-rows"></tbody>
+    </table>
+  </section>
+
+  <section class="card" id="fool">
+    <h2>Fool rate</h2>
+    <p class="sub">Share of human votes that landed on an AI seat. Overall: <span class="big">41%</span></p>
+    <div class="groups">
+      <div class="group"><h3>By model</h3>
+        <div class="row"><span>qwen-3.6</span><div class="bar"><i style="width:52%"></i></div><span>52%</span></div>
+        <div class="row"><span>gemma-4</span><div class="bar"><i style="width:38%"></i></div><span>38%</span></div>
+        <div class="row"><span>mistral-small</span><div class="bar"><i style="width:33%"></i></div><span>33%</span></div>
+      </div>
+      <div class="group"><h3>By difficulty</h3>
+        <div class="row"><span>independent</span><div class="bar"><i style="width:36%"></i></div><span>36%</span></div>
+        <div class="row"><span>directed</span><div class="bar"><i style="width:46%"></i></div><span>46%</span></div>
+        <h3 style="margin-top:14px">By prompt version</h3>
+        <div class="row"><span>v1</span><div class="bar"><i style="width:40%"></i></div><span>40%</span></div>
+        <div class="row"><span>v2</span><div class="bar"><i style="width:44%"></i></div><span>44%</span></div>
+      </div>
+    </div>
+    <p class="flag">Random guessing among 4 other seats gives 25%. Anything above that means AIs are fooling humans.</p>
+  </section>
+</div>
+
+<script src="shared.js"></script>
+<script>
+// Mock data. Usernames appear only on this page, never in game screens (SPEC §2.1 / invariant 3).
+const ME = {name:'nightowl_88', games:12, det:6, rec:4, mutual:2};
+const frac = x => x - Math.floor(x);   // spread-out pseudo-random values in 0..1
+const OTHERS = Array.from({length: 41}, (_, i) => {
+  const games = 5 + ((i * 7) % 22);
+  const det = Math.min(games, Math.floor(games * (0.12 + frac((i + 1) * 0.6180339) * 0.6)));
+  const rec = Math.min(games, Math.floor(games * (0.10 + frac((i + 1) * 0.3247179) * 0.5)));
+  const mutual = Math.min(det, rec, Math.floor(games / 3));
+  return {name: ['blue_fox','rusty_b','velvet_m','iron_hare','amber_o','quiet_ox','tin_wolf','mo_sparrow'][i % 8] + (i + 2), games, det, rec, mutual};
+});
+const pts = p => p.det + p.rec + p.mutual;
+const rate = (n, d) => d ? n / d : 0;
+const METRICS = {
+  det: {label:'Found the human', val: p => rate(p.det, p.games)},
+  rec: {label:'Was found', val: p => rate(p.rec, p.games)},
+  pts: {label:'Points per game', val: p => rate(pts(p), p.games)}
+};
+let metric = 'det';
+
+function ranked(){ return [ME, ...OTHERS].filter(p => p.games >= 5); }
+function standingFor(m){
+  const list = ranked().slice().sort((a, b) => METRICS[m].val(b) - METRICS[m].val(a) || pts(b) - pts(a));
+  const myIdx = list.indexOf(ME);
+  return {list, rank: myIdx + 1, total: list.length};
+}
+const pct = v => Math.round(v * 100) + '%';
+
+function renderMe(){
+  const st = standingFor(metric);
+  const topPct = Math.max(1, Math.round(st.rank / st.total * 100));
+  document.getElementById('my-rank').textContent = '#' + st.rank;
+  document.getElementById('my-of').textContent = 'of ' + st.total;
+  document.getElementById('my-sentence').innerHTML =
+    `You rank <b>#${st.rank}</b> of ${st.total} ranked players on <b>${METRICS[metric].label.toLowerCase()}</b>. That is the top ${topPct}%.`;
+  document.getElementById('my-notice').textContent = ME.games >= 5
+    ? 'Ranks update after every finished game.'
+    : `Play ${5 - ME.games} more game${5 - ME.games === 1 ? '' : 's'} to get ranked.`;
+  document.getElementById('metric-tabs').innerHTML = Object.keys(METRICS).map(k =>
+    `<button class="tab${k === metric ? ' on' : ''}" data-m="${k}" role="tab" aria-selected="${k === metric}">${METRICS[k].label}</button>`).join('');
+  document.getElementById('k-games').textContent = ME.games;
+  document.getElementById('k-points').textContent = pts(ME);
+  document.getElementById('k-det').textContent = pct(rate(ME.det, ME.games));
+  document.getElementById('k-rec').textContent = pct(rate(ME.rec, ME.games));
+  document.getElementById('board-metric').textContent = METRICS[metric].label.toLowerCase();
+}
+
+function renderHistory(){
+  const rows = [
+    {g:'Game 12', found:true,  wasFound:true,  mutual:true,  pts:7},
+    {g:'Game 11', found:false, wasFound:false, mutual:false, pts:0},
+    {g:'Game 10', found:true,  wasFound:false, mutual:false, pts:1},
+    {g:'Game 9',  found:true,  wasFound:true,  mutual:true,  pts:7},
+    {g:'Game 8',  found:false, wasFound:true,  mutual:false, pts:1}
+  ];
+  document.getElementById('history').innerHTML = rows.map(r => `<tr>
+    <td>${r.g}</td>
+    <td><span class="tick ${r.found ? 'yes' : 'no'}">${r.found ? 'YES' : 'NO'}</span></td>
+    <td><span class="tick ${r.wasFound ? 'yes' : 'no'}">${r.wasFound ? 'YES' : 'NO'}</span></td>
+    <td>${r.mutual ? '<span class="tick mutual">MUTUAL</span>' : '—'}</td>
+    <td class="num">${r.pts}</td></tr>`).join('');
+}
+
+function renderBoard(){
+  const st = standingFor(metric);
+  const top = st.list.slice(0, 10);
+  let rows = top.map((p, i) => boardRow(p, i + 1));
+  if (st.rank > 10) rows.push(`<tr><td colspan="6" style="text-align:center;color:var(--grey)">…</td></tr>`, boardRow(ME, st.rank));
+  rows.splice(Math.min(top.length, 10), 0, `<tr class="baseline"><td></td><td colspan="5">Random baseline: 25% (1 of 4 other seats)</td></tr>`);
+  document.getElementById('board-rows').innerHTML = rows.join('');
+}
+function boardRow(p, rank){
+  const me = p === ME;
+  return `<tr class="${me ? 'me' : ''}">
+    <td class="rank">${rank}</td>
+    <td>${me ? '<b>' + p.name + '</b> (you)' : p.name}</td>
+    <td class="num">${p.games}</td>
+    <td class="num hide-s">${pts(p)}</td>
+    <td><div class="bar base"><i style="width:${pct(rate(p.det, p.games))}"></i></div> ${pct(rate(p.det, p.games))}</td>
+    <td class="hide-s"><div class="bar base"><i style="width:${pct(rate(p.rec, p.games))}"></i></div> ${pct(rate(p.rec, p.games))}</td>
+  </tr>`;
+}
+
+function renderAll(){ renderMe(); renderHistory(); renderBoard(); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('.tab');
+  if (t){ metric = t.dataset.m; renderAll(); }
+});
+renderAll();
+</script>
+</body>
+</html>

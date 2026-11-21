@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Room · 4 variants</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{--ink:#1b1220;--wood-d:#2a1a14;--wood:#5a3524;--parch:#f1e2bc;--gold:#e9b44c;--white:#fff6e0}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--wood-d);color:var(--white);font-family:VT323,monospace;font-size:20px;overflow-x:hidden}
+  header{padding:20px 16px 8px;max-width:1500px;margin:0 auto}
+  header h1{font-family:'Press Start 2P',monospace;font-weight:400;font-size:16px;color:var(--gold);margin:0 0 8px}
+  header p{margin:0;color:var(--parch)}
+  .canvases{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;max-width:1500px;margin:0 auto}
+  .canvas{background:var(--ink);border:3px solid var(--ink);box-shadow:6px 6px 0 var(--gold);min-width:0}
+  .canvas h2{font-family:'Press Start 2P',monospace;font-weight:400;font-size:11px;margin:0;padding:12px 14px;background:var(--gold);color:var(--ink);border-bottom:3px solid var(--ink);line-height:1.5}
+  .canvas p{margin:0;padding:8px 14px;color:var(--parch);border-bottom:2px solid var(--wood)}
+  .canvas iframe{display:block;width:100%;height:860px;border:0;background:var(--wood-d)}
+  @media (max-width:980px){ .canvases{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Game room · 4 variants</h1>
+  <p>Each canvas is a live mockup. Use the phase selector inside a canvas to step through INTRO → RESULT. Mock data only, aliases only.</p>
+</header>
+<main class="canvases">
+  <section class="canvas">
+    <h2>A · Round table</h2>
+    <p>Five seats around a table that carries the phase and timer. Log and composer below.</p>
+    <iframe src="a-round-table.html" title="A · Round table" loading="lazy"></iframe>
+  </section>
+  <section class="canvas">
+    <h2>B · Dialogue</h2>
+    <p>Tavern scene with five patrons. One parchment dialogue box does all the talking.</p>
+    <iframe src="b-dialogue.html" title="B · Dialogue" loading="lazy"></iframe>
+  </section>
+  <section class="canvas">
+    <h2>C · Ledger</h2>
+    <p>Seats as a suspicion notebook on the left, phase in the centre, journal on the right.</p>
+    <iframe src="c-ledger.html" title="C · Ledger" loading="lazy"></iframe>
+  </section>
+  <section class="canvas">
+    <h2>D · Quest board</h2>
+    <p>Phase as a quest track. Booths in a row, chalkboard log under them.</p>
+    <iframe src="d-quest-board.html" title="D · Quest board" loading="lazy"></iframe>
+  </section>
+</main>
+</body>
+</html>

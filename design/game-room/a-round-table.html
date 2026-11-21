@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A · Round Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Variant A — Round Table: the five seats sit around one oval-ish table; the table itself carries the phase. */
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px 48px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--gold);font-size:13px}
+  .pill{background:var(--parch);color:var(--ink);border:3px solid var(--ink);padding:6px 8px;font-size:10px}
+  .stage{position:relative;height:560px;margin:14px 0 18px}
+  .table{position:absolute;left:180px;right:180px;top:190px;bottom:190px;background:var(--wood);border:3px solid var(--ink);
+    clip-path:polygon(9% 0,91% 0,100% 22%,100% 78%,91% 100%,9% 100%,0 78%,0 22%);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px 40px;color:var(--parch)}
+  .table .px{color:var(--gold);font-size:12px;margin-bottom:6px}
+  .table .hint{color:var(--parch);margin:0 0 6px}
+  .table .timer{font-family:'Press Start 2P',monospace;font-size:16px;color:var(--gold);margin-top:6px}
+  .table .bar{width:70%}
+  .seat-pos{position:absolute;width:150px}
+  .s0{left:50%;top:0;transform:translateX(-50%)}
+  .s1{right:0;top:150px}
+  .s2{right:70px;bottom:0}
+  .s3{left:70px;bottom:0}
+  .s4{left:0;top:150px}
+  .grid{display:grid;grid-template-columns:1fr 340px;gap:16px;align-items:start}
+  .panel{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:14px}
+  .log{max-height:380px;overflow:auto;padding-right:6px}
+  .empty{margin:0;color:var(--grey)}
+  @media (max-width:760px){
+    .table{padding:20px 16px}
+    .stage{height:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .seat-pos{position:static;transform:none!important;width:auto}
+    .s0{grid-column:1/-1;justify-self:center;width:150px}
+    .table{position:static;grid-column:1/-1;clip-path:none;min-height:200px}
+    .grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+function renderA(phase){
+  const p = PHASES[phase], c = composeData(phase);
+  const entries = transcriptEntries(phase);
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="wrap">
+    <header class="top">
+      <div class="px logo">Find the Human</div>
+      <div class="px pill">Round 1 / 2 · ${phase}</div>
+    </header>
+    <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+    <section class="stage">
+      <div class="table">
+        <div class="px">${esc(p.title)}</div>
+        <p class="hint">${esc(p.hint)}</p>
+        <div class="px timer" data-timer></div>
+        <div class="bar"><i data-bar></i></div>
+      </div>
+      ${SEATS.map((_, i) => `<div class="seat-pos s${i}">${seatHTML(i, {reveal: phase === 'RESULT', selectable: phase === 'VOTE'})}</div>`).join('')}
+    </section>
+    <section class="grid">
+      <div class="panel">
+        <div class="kick">Table log</div>
+        <div class="log">${entries.length ? entries.map(entryHTML).join('') : '<p class="empty">Nothing said yet. Intros reveal when the timer ends.</p>'}</div>
+      </div>
+      <div class="panel">${composeHTML(c)}</div>
+    </section>
+  </div>`;
+  afterRender(app, phase);
+}
+mountControls(renderA);
+</script>
+</body>
+</html>
