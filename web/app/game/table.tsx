@@ -500,9 +500,15 @@ function TextSlot(p: TableProps & {
       </>
     );
   }
+  // An empty Send is a skip (no separate Skip button). Enter only sends text, so a stray
+  // keypress in an empty box never skips.
   const send = () => {
-    if (len === 0 || len > p.max || busy) return;
+    if (len > p.max || busy) return;
     setBusy(true);
+    if (len === 0) {
+      p.onSkip(view.phase, view.round, p.kind, p.qid);
+      return;
+    }
     p.onSubmit(view.phase, view.round, p.kind, text.trim(), p.qid, { first_keystroke_ms: first.current, edit_count: edits.current });
   };
   return (
@@ -519,15 +525,14 @@ function TextSlot(p: TableProps & {
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            send();
+            if (len > 0) send();
           }
         }}
       />
       <div className="row">
         <span className={`count${len > p.max ? " over" : len > p.max - 20 ? " near" : ""}`}>{len}/{p.max}</span>
         <span className="grow" />
-        <button className="btn ghost" disabled={busy} onClick={() => { setBusy(true); p.onSkip(view.phase, view.round, p.kind, p.qid); }}>Skip</button>
-        <button className="btn" disabled={busy || len === 0 || len > p.max} onClick={send}>Send</button>
+        <button className="btn" disabled={busy || len > p.max} onClick={send}>Send</button>
       </div>
     </>
   );

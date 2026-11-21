@@ -328,3 +328,6 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     the table shows one question at a time.
 83. **The matching screen shows every seat at the table** (from `/api/config`), as matching.html does. On
     `game.start` it fills all seats with their sprites, says "Table ready" for about a second, then sits down.
+84. **No Skip button: an empty Send is a skip.** The composer has one button. Pressing Send with an empty box
+    sends `game.skip` (protocol unchanged); Enter in an empty box does nothing, so a stray keypress never
+    skips. Skipping an answer moves to the next unanswered question, as sending one does.

@@ -128,7 +128,10 @@ function Game() {
   const onSubmit = (phase: Phase, round: number, kind: string, text: string, qid: string | undefined, t: Telemetry) => {
     pending.current[slotKey(phase, round, qid)] = text;
     send("game.submit", { game_id: s.gameId, phase, round, kind, question_id: qid, text, ...t });
-    // After answering, move to the next question you haven't answered yet.
+    nextQuestion(phase, round, qid);
+  };
+  // After answering or skipping, move to the next question you haven't answered yet.
+  const nextQuestion = (phase: Phase, round: number, qid: string | undefined) => {
     if (phase === "ANSWER" && qid) {
       const qs = questionsFor(s, round);
       const done = new Set(s.mine.map((m) => m.question_id).concat(qid));
@@ -137,8 +140,10 @@ function Game() {
       if (wrap >= 0) setTimeout(() => setQIdx(wrap), 900);
     }
   };
-  const onSkip = (phase: Phase, round: number, kind: string, qid: string | undefined) =>
+  const onSkip = (phase: Phase, round: number, kind: string, qid: string | undefined) => {
     send("game.skip", { game_id: s.gameId, phase, round, kind, question_id: qid });
+    nextQuestion(phase, round, qid);
+  };
   const onNote = (target: number, n: NoteState) => {
     dispatch({ t: "note", target, n }); // optimistic; note.ack confirms
     send("note.set", { game_id: s.gameId, target_seat: target, mark: n.mark, note: n.note || undefined });
