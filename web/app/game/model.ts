@@ -129,9 +129,9 @@ export function phaseSeconds(c: PublicConfig | null, p: Phase): number {
 
 export const PHASES: Record<Phase, { title: string; hint: string }> = {
   LOBBY: { title: "Sitting down", hint: "" },
-  INTRO: { title: "Introductions", hint: "Say hi in 160 characters. Optional." },
+  INTRO: { title: "Introductions", hint: "Say hi in 160 characters. Optional: send it empty to skip." },
   ASK: { title: "Ask the table", hint: "One question for everyone. 160 characters." },
-  ANSWER: { title: "Answer the table", hint: "Answer each question. Skip any. 200 characters." },
+  ANSWER: { title: "Answer the table", hint: "Answer each question. 200 characters. Send it empty to skip." },
   REVEAL: { title: "Answers are in", hint: "Everyone sees these at the same time." },
   VOTE: { title: "Who is the human?", hint: "Pick one seat. Locked once cast." },
   RESULT: { title: "Game over", hint: "Seats are revealed." },
