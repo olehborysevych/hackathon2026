@@ -386,19 +386,22 @@ func runCase(cfg ai.Config, base Record, spec PersonaSpec, pIdx, run int, c Case
 		rec.Question = c.Text
 		in.Question = c.Text
 		in.Transcript = transcript + fmt.Sprintf("\n[Round 1] Question from %s: %s", asker, c.Text)
-		in.Task = fmt.Sprintf("Answer %s's question (max 200 chars): %q", asker, c.Text)
+		in.Task = ai.AnswerTask(asker, c.Text, 200)
+		in.Kind = "answer"
 		in.MaxLen = 200
 	case "ask":
 		rec.Question = "(ASK phase: write one question to the table)"
 		in.Transcript = transcript
-		in.Task = "Ask the table ONE question (max 160 chars). Everyone will answer it. Ask the kind of thing a human player would ask to find the other human."
+		in.Task = ai.AskTask(cfg.PromptVersion, 160)
+		in.Kind = "ask"
 		in.MaxLen = 160
 	case "intro":
 		rec.Question = "(INTRO phase: write a self-intro)"
 		rec.Own = nil
 		in.OwnMessages = nil
 		in.Transcript = "(intros are revealed together; nothing yet)"
-		in.Task = "Write your intro for the table (max 160 chars). Optional; keep it natural."
+		in.Task = ai.IntroTask(cfg.PromptVersion, 160)
+		in.Kind = "intro"
 		in.MaxLen = 160
 	case "vote":
 		rec.Question = "(VOTE)"

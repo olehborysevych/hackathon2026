@@ -33,6 +33,9 @@ type LLM struct {
 	Now           func() time.Time // clock for the prompt's date/time; nil = time.Now
 	Location      *time.Location   // venue time zone for the prompt; nil = server local
 	Features      *ai.Features     // nil = ai.DefaultFeatures(PromptVersion)
+	// IntroExtraSkip is added to the persona's skip_rate for the optional intro (humans often
+	// skip it). The server uses 0.15.
+	IntroExtraSkip float64
 }
 
 var errNoPersona = errors.New("agent: ai seat without a persona")
@@ -74,12 +77,14 @@ func (a *LLM) Act(ctx context.Context, req Request) (Reply, error) {
 	case game.Intro:
 		in := base
 		in.Transcript = "(intros are revealed together; nothing yet)"
-		in.Task = fmt.Sprintf("Write your intro for the table (max %d chars). Optional; keep it natural.", game.MaxIntro)
+		in.Task = ai.IntroTask(a.PromptVersion, game.MaxIntro)
+		in.Kind = "intro"
 		in.MaxLen = game.MaxIntro
 		slots = append(slots, slot{"", in})
 	case game.Ask:
 		in := base
-		in.Task = fmt.Sprintf("Ask the table ONE question (max %d chars). Everyone will answer it. Ask the kind of thing a human player would ask to find the other human.", game.MaxAsk)
+		in.Task = ai.AskTask(a.PromptVersion, game.MaxAsk)
+		in.Kind = "ask"
 		in.MaxLen = game.MaxAsk
 		slots = append(slots, slot{"", in})
 	case game.Answer:
@@ -88,7 +93,8 @@ func (a *LLM) Act(ctx context.Context, req Request) (Reply, error) {
 			in := base
 			in.Question = q.Text
 			in.Transcript = tr.text + fmt.Sprintf("\n[Round %d] Question from %s: %s", req.Round, asker, q.Text)
-			in.Task = fmt.Sprintf("Answer %s's question (max %d chars): %q", asker, game.MaxAnswer, q.Text)
+			in.Task = ai.AnswerTask(asker, q.Text, game.MaxAnswer)
+			in.Kind = "answer"
 			in.MaxLen = game.MaxAnswer
 			slots = append(slots, slot{q.ID, in})
 		}
@@ -112,9 +118,14 @@ func (a *LLM) Act(ctx context.Context, req Request) (Reply, error) {
 	purpose := strings.ToLower(string(req.Phase))
 	for i, r := range results {
 		it := Item{QuestionID: slots[i].qid, Text: r.Final, BrokeCharacter: r.BrokeCharacter, OutOfGame: r.OutOfGame}
-		// skip_rate is rolled after the call, and never silences a safety-valve reply.
+		// skip_rate is rolled after the call, and never silences a safety-valve reply. Intros are
+		// optional and humans often skip them, so they get extra skip probability.
 		rng := rand.New(rand.NewPCG(slots[i].in.Seed, 7))
-		if r.Final == ai.Skip || r.Final == "" || (!r.OutOfGame && rng.Float64() < p.SkipRate) {
+		skip := p.SkipRate
+		if req.Phase == game.Intro {
+			skip += a.IntroExtraSkip
+		}
+		if r.Final == ai.Skip || r.Final == "" || (!r.OutOfGame && rng.Float64() < skip) {
 			it.Text, it.Skip = "", true
 		}
 		rep.Items = append(rep.Items, it)

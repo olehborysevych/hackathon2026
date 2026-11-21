@@ -260,3 +260,23 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     embedded because the distroless image has no zoneinfo). `DIFFICULTY=directed` logs a warning and plays
     `independent`: the director, the generated personas and the post-game analysis are in `internal/ai` but not
     yet called by the hub. Known tactics are not injected yet either (`LLM.KnownTactics` is the hook, empty for now).
+75. **Prompt v3 (`seat.v3.md`, default since the first live games).** Live v2 intros all read "hey i'm <alias>,
+    <job> from <city>", and questions mentioned the hackathon. v2 is frozen because games were played on it. In the
+    harness (venue personas, 30 intros and 30 questions per version):
+
+    | metric | v2 | v3 |
+    |---|---|---|
+    | own alias in intros | 97% | 0% |
+    | event in questions | 23% | 0% |
+    | venue small talk in intros | 13–69% | 16% |
+
+    Changes:
+    - the prompt says everyone sees your alias and everyone is at the same event;
+    - `ai.StripSelfAlias` removes "hi im <alias>" in code (`Features.AliasGuard`);
+    - task texts live in `ai.IntroTask` / `AskTask` / `AnswerTask`, so the harness and production send the same text;
+    - intros sample a kind in code (greeting 35%, feeling about the game 25%, joke about the game 20%, one personal
+      thing 20%) with a length cap;
+    - answer angles no longer apply to intros or questions, where they bolted the same small talk onto everything;
+    - intros get +15% skip on top of the persona's `skip_rate` (`LLM.IntroExtraSkip`); real intros are optional
+      and often blank.
+    Not yet run through the judge or lineup.

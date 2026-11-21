@@ -39,6 +39,33 @@ var angles = []angle{
 	{"answer briefly and turn a question back to them", map[string]float64{"friendly": 1.5, "sarcastic": 0.5}},
 }
 
+// introAngles: what a stranger types as a group-chat intro. Without them every seat wrote the
+// same venue small talk ("kinda tired", "here for the snacks", "need a coffee").
+var introAngles = []struct {
+	text   string
+	w      float64
+	maxLen int
+}{
+	{"just a short greeting, nothing else", 0.35, 14},
+	{"a greeting plus how you feel about playing this game", 0.25, 60},
+	{"a short joke about this game or about who's human", 0.20, 70},
+	{"one random thing about yourself that isn't your job, your city or the venue", 0.20, 80},
+}
+
+// WithIntroAngle sets the intro kind and caps the target length to fit it (v3).
+func (mp MessagePlan) WithIntroAngle(rng *rand.Rand) MessagePlan {
+	x := rng.Float64()
+	for _, a := range introAngles {
+		if x < a.w {
+			mp.Angle = a.text
+			mp.TargetLen = min(mp.TargetLen, a.maxLen)
+			return mp
+		}
+		x -= a.w
+	}
+	return mp
+}
+
 func pickAngle(mood string, rng *rand.Rand) string {
 	var total float64
 	ws := make([]float64, len(angles))
