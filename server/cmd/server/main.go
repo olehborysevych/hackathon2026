@@ -1,5 +1,5 @@
-// Command server is the single deployable: HTTP API + embedded static web UI (SPEC §5).
-// WebSocket and game hub come in later milestones.
+// Command server is the single deployable: HTTP API, /ws game hub and the embedded static web UI
+// (SPEC §5). One process, one instance: game state lives in memory, Postgres is the record.
 package main
 
 import (
@@ -13,11 +13,15 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
+	"hackathon2026/server/internal/agent"
 	"hackathon2026/server/internal/auth"
+	"hackathon2026/server/internal/game"
+	"hackathon2026/server/internal/hub"
 	"hackathon2026/server/internal/store"
 )
 
@@ -35,6 +39,17 @@ func main() {
 
 	port := env("PORT", "8080")
 
+	cfg, err := game.ConfigFromEnv(os.Getenv)
+	if err != nil {
+		slog.Error("config", "err", err)
+		os.Exit(1)
+	}
+	botAfter, err := secondsEnv("DEV_BOT_HUMAN_AFTER_SEC")
+	if err != nil {
+		slog.Error("config", "err", err)
+		os.Exit(1)
+	}
+
 	var st *store.Store
 	if url := os.Getenv("DATABASE_URL"); url != "" {
 		var err error
@@ -48,18 +63,40 @@ func main() {
 			slog.Error("migrate", "err", err)
 			os.Exit(1)
 		}
+		if n, err := st.AbortRunningGames(ctx, time.Now()); err != nil {
+			slog.Error("abort stale games", "err", err)
+		} else if n > 0 {
+			slog.Info("marked games from the previous run as aborted", "games", n)
+		}
 	} else {
 		slog.Warn("DATABASE_URL not set: running without accounts")
 	}
 
-	var authStore auth.Store // keep the interface nil (not a typed nil) when there is no DB
+	var authStore auth.Store // keep the interfaces nil (not a typed nil) when there is no DB
+	var gameStore hub.Store
 	if st != nil {
-		authStore = st
+		authStore, gameStore = st, st
+	}
+	authSvc := auth.New(authStore)
+
+	games := hub.New(ctx, hub.Options{
+		Config:        cfg,
+		BotHumanAfter: botAfter,
+		Agent:         agent.NewStub(uint64(time.Now().UnixNano())),
+		Store:         gameStore,
+	})
+	slog.Info("game config",
+		"humans", cfg.HumansPerGame, "ai", cfg.AIPerGame, "rounds", cfg.Rounds,
+		"t_intro", cfg.TIntro, "t_ask", cfg.TAsk, "t_answer", cfg.TAnswer, "t_reveal", cfg.TReveal, "t_vote", cfg.TVote,
+		"dev_bot_human_after", botAfter)
+	if botAfter > 0 {
+		slog.Warn("DEV_BOT_HUMAN_AFTER_SEC is set: lone players get a bot_human partner (dev only)")
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", healthHandler(st))
-	auth.New(authStore).Routes(mux)
+	authSvc.Routes(mux)
+	mux.Handle("GET /ws", games.Handler(authSvc.UserID, listEnv("WS_ORIGINS")))
 
 	webRoot, err := fs.Sub(webFS, "web")
 	if err != nil {
@@ -95,6 +132,30 @@ func env(key, def string) string {
 		return v
 	}
 	return def
+}
+
+// secondsEnv reads a whole number of seconds; unset or 0 means off.
+func secondsEnv(key string) (time.Duration, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return 0, nil
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n < 0 {
+		return 0, errors.New(key + " must be a whole number of seconds")
+	}
+	return time.Duration(n) * time.Second, nil
+}
+
+// listEnv reads a comma-separated list, e.g. WS_ORIGINS=localhost:3000 for `next dev`.
+func listEnv(key string) []string {
+	var out []string
+	for _, p := range strings.Split(os.Getenv(key), ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 // healthHandler is a liveness check: it always answers 200 while the process runs, and reports
