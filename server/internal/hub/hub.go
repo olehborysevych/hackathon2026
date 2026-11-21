@@ -39,6 +39,8 @@ type Options struct {
 	Retain        time.Duration // keep finished games in memory for resync (default 10m)
 	AIProvider    string        // recorded on ai seats (default "stub")
 	AIModel       string        // recorded on ai seats and shown at RESULT (default "stub")
+	Difficulty    string        // recorded on games (default "stub")
+	PromptVersion string        // recorded on games and ai calls (default "stub")
 }
 
 type Hub struct {
@@ -80,6 +82,12 @@ func New(ctx context.Context, o Options) *Hub {
 	}
 	if o.AIModel == "" {
 		o.AIModel = "stub"
+	}
+	if o.Difficulty == "" {
+		o.Difficulty = "stub"
+	}
+	if o.PromptVersion == "" {
+		o.PromptVersion = "stub"
 	}
 	if o.Agent == nil {
 		o.Agent = agent.NewStub(seed())

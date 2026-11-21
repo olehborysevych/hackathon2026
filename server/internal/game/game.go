@@ -141,6 +141,9 @@ type GameRecord struct {
 	Config    Config
 	StartedAt time.Time
 	Seats     []Seat
+	// Set by the hub, which knows what plays the AI seats.
+	Difficulty    string
+	PromptVersion string
 }
 
 type MessageRecord struct {

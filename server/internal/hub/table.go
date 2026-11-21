@@ -231,7 +231,7 @@ func (t *table) agentDone(d agentDone) {
 		}{subs, vote})
 		rec := agent.CallRecord{
 			GameID: t.id, Seat: d.run.Seat, Purpose: purpose(d.run.Phase), Provider: s.Provider, ModelID: s.ModelID,
-			PromptVersion: "stub", Final: string(final), LatencyMs: int(d.latency.Milliseconds()), CreatedAt: time.Now(),
+			PromptVersion: t.h.opts.PromptVersion, Final: string(final), LatencyMs: int(d.latency.Milliseconds()), CreatedAt: time.Now(),
 		}
 		if d.err != nil {
 			rec.Error = d.err.Error()
@@ -280,6 +280,7 @@ func (t *table) persister() {
 		var err error
 		switch r := rec.(type) {
 		case game.GameRecord:
+			r.Difficulty, r.PromptVersion = t.h.opts.Difficulty, t.h.opts.PromptVersion
 			err = st.CreateGame(ctx, r)
 		case game.MessageRecord:
 			err = st.InsertMessage(ctx, r)
