@@ -449,3 +449,92 @@ func TestHandlerAuthAndOrigin(t *testing.T) {
 		t.Fatalf("got %s", env.Type)
 	}
 }
+
+// llmLikeAgent stands in for agent.LLM: it returns per-call records and flags like the real one.
+type llmLikeAgent struct{}
+
+func (llmLikeAgent) Act(_ context.Context, req agent.Request) (agent.Reply, error) {
+	if req.Kind != game.KindAI {
+		return agent.NewStub(1).Act(context.Background(), req)
+	}
+	rep := agent.Reply{Calls: []agent.CallRecord{{Purpose: "answer", Provider: "fake", ModelID: req.ModelID, Draft: "d", Final: "f", InputTokens: 9}}}
+	switch req.Phase {
+	case game.Answer:
+		for _, q := range req.Questions {
+			rep.Items = append(rep.Items, agent.Item{QuestionID: q.ID, Text: "As an AI I can't", BrokeCharacter: true})
+		}
+	case game.Vote:
+		v := req.Candidates[0]
+		rep.Vote = &v
+	default:
+		rep.Items = []agent.Item{{Text: "hello"}}
+	}
+	return rep, nil
+}
+
+// Personas and models reach the store, never a client frame (invariant 1); every LLM call is
+// persisted with game and seat filled in (invariant 4); break flags reach messages (invariant 7).
+func TestAISeatsPersonaPrivateAndCallsLogged(t *testing.T) {
+	const marker = "persona-marker-7f3a"
+	seats := func(n int) []game.SeatSpec {
+		out := make([]game.SeatSpec, n)
+		for i := range out {
+			out[i] = game.SeatSpec{Provider: "openrouter", ModelID: "model-" + string(rune('a'+i)),
+				Persona: json.RawMessage(`{"job":"` + marker + `"}`)}
+		}
+		return out
+	}
+	h, st := newTestHub(t, Options{Config: fastConfig(300 * time.Millisecond), Agent: llmLikeAgent{}, AISeats: seats, BotHumanAfter: 50 * time.Millisecond})
+	a := h.Connect(alice)
+	send(h, a, ws.TQueueJoin, struct{}{})
+	var frames []ws.Envelope
+	for {
+		env, ok := recv(t, a, 5*time.Second)
+		if !ok {
+			t.Fatal("game did not finish")
+		}
+		frames = append(frames, env)
+		if strings.Contains(string(env.Payload), marker) {
+			t.Fatalf("%s leaks the persona: %s", env.Type, env.Payload)
+		}
+		if env.Type == ws.TGameResult {
+			break
+		}
+	}
+	checkFrames(t, frames, []string{marker, "model-a"})
+	time.Sleep(50 * time.Millisecond)
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	models := map[string]bool{}
+	for _, s := range st.games[0].Seats {
+		if s.Kind == game.KindAI {
+			if !strings.Contains(string(s.Persona), marker) {
+				t.Errorf("seat %d persona not stored", s.Index)
+			}
+			models[s.ModelID] = true
+		}
+	}
+	if len(models) != 3 {
+		t.Errorf("per-seat models not applied: %v", models)
+	}
+	if len(st.aiCalls) != 3*4 {
+		t.Fatalf("want one logged call per AI seat per phase, got %d", len(st.aiCalls))
+	}
+	for _, c := range st.aiCalls {
+		if c.GameID == "" || c.InputTokens != 9 || c.Draft != "d" || c.CreatedAt.IsZero() {
+			t.Fatalf("call record incomplete: %+v", c)
+		}
+	}
+	broke := 0
+	for _, m := range st.messages {
+		if m.BrokeCharacter {
+			broke++
+			if m.Text != "As an AI I can't" {
+				t.Errorf("break text altered: %q", m.Text)
+			}
+		}
+	}
+	if broke == 0 {
+		t.Error("broke_character not persisted on messages")
+	}
+}

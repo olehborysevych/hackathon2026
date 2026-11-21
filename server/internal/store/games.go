@@ -31,6 +31,29 @@ func nullable(s string) *string {
 	return &s
 }
 
+// nullableJSON passes JSON as text so pgx sends it to a jsonb column; empty = NULL.
+func nullableJSON(b []byte) *string {
+	if len(b) == 0 {
+		return nil
+	}
+	s := string(b)
+	return &s
+}
+
+func nullableInt(n int) *int {
+	if n == 0 {
+		return nil
+	}
+	return &n
+}
+
+func nullableFloat(f float64) *float64 {
+	if f == 0 {
+		return nil
+	}
+	return &f
+}
+
 // CreateGame stores the game and its seats in one transaction.
 func (s *Store) CreateGame(ctx context.Context, r game.GameRecord) error {
 	c := r.Config
@@ -51,10 +74,10 @@ func (s *Store) CreateGame(ctx context.Context, r game.GameRecord) error {
 		}
 		for _, st := range r.Seats {
 			if _, err := tx.Exec(ctx,
-				`insert into seats(game_id, seat, alias, sprite_seed, kind, user_id, provider, model_id)
-				 values($1,$2,$3,$4,$5,$6,$7,$8)`,
+				`insert into seats(game_id, seat, alias, sprite_seed, kind, user_id, provider, model_id, persona)
+				 values($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 				r.ID, st.Index, st.Alias, st.SpriteSeed, string(st.Kind),
-				nullable(st.UserID), nullable(st.Provider), nullable(st.ModelID)); err != nil {
+				nullable(st.UserID), nullable(st.Provider), nullable(st.ModelID), nullableJSON(st.Persona)); err != nil {
 				return fmt.Errorf("insert seat %d: %w", st.Index, err)
 			}
 		}
@@ -69,10 +92,10 @@ func (s *Store) InsertMessage(ctx context.Context, r game.MessageRecord) error {
 	}
 	_, err := s.pool.Exec(ctx,
 		`insert into messages(id, game_id, round, phase, kind, seat, question_id, text, skipped,
-		   phase_started_at, submitted_at, first_keystroke_ms, edit_count)
-		 values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+		   phase_started_at, submitted_at, first_keystroke_ms, edit_count, broke_character, out_of_game)
+		 values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		r.ID, r.GameID, r.Round, string(r.Phase), string(r.Kind), r.Seat, nullable(r.QuestionID), text, r.Skipped,
-		r.PhaseStartedAt, r.SubmittedAt, r.FirstKeystrokeMs, r.EditCount)
+		r.PhaseStartedAt, r.SubmittedAt, r.FirstKeystrokeMs, r.EditCount, r.BrokeCharacter, r.OutOfGame)
 	return err
 }
 
@@ -109,10 +132,12 @@ func (s *Store) FinishGame(ctx context.Context, r game.FinishRecord) error {
 
 func (s *Store) InsertAICall(ctx context.Context, r agent.CallRecord) error {
 	_, err := s.pool.Exec(ctx,
-		`insert into ai_calls(game_id, seat, purpose, provider, model_id, prompt_version, final, latency_ms, error, created_at)
-		 values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+		`insert into ai_calls(game_id, seat, purpose, provider, model_id, prompt_version, request, draft, final,
+		   latency_ms, input_tokens, output_tokens, cost_usd, error, created_at)
+		 values($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		r.GameID, r.Seat, r.Purpose, nullable(r.Provider), nullable(r.ModelID), nullable(r.PromptVersion),
-		nullable(r.Final), r.LatencyMs, nullable(r.Error), r.CreatedAt)
+		nullableJSON(r.Request), nullable(r.Draft), nullable(r.Final), r.LatencyMs,
+		nullableInt(r.InputTokens), nullableInt(r.OutputTokens), nullableFloat(r.CostUSD), nullable(r.Error), r.CreatedAt)
 	return err
 }
 
@@ -168,12 +193,12 @@ func (s *Store) ExportGames(ctx context.Context, fn func(ExportGame) error) erro
 		}{
 			{&g.Seats, `select seat, alias, sprite_seed, kind, user_id::text as user_id, provider, model_id, persona from seats where game_id=$1 order by seat`},
 			{&g.Messages, `select id::text as id, round, phase, kind, seat, question_id::text as question_id, text, skipped, phase_started_at, submitted_at,
-			   first_keystroke_ms, edit_count, broke_character from messages where game_id=$1 order by phase_started_at, submitted_at nulls last, seat`},
+			   first_keystroke_ms, edit_count, broke_character, out_of_game from messages where game_id=$1 order by phase_started_at, submitted_at nulls last, seat`},
 			{&g.Votes, `select voter_seat, target_seat, cast_at from votes where game_id=$1 order by cast_at`},
 			{&g.Notes, `select owner_seat, target_seat, mark, note, round, phase, ts from note_events where game_id=$1 order by id`},
 			{&g.Results, `select seat, points, found_other, was_found, mutual, votes_stolen from results where game_id=$1 order by seat`},
 			{&g.AICalls, `select seat, purpose, provider, model_id, prompt_version, draft, final, latency_ms, input_tokens,
-			   output_tokens, error, created_at from ai_calls where game_id=$1 order by created_at`},
+			   output_tokens, cost_usd::float8 as cost_usd, error, created_at from ai_calls where game_id=$1 order by created_at`},
 		}
 		for _, p := range parts {
 			rows, err := s.pool.Query(ctx, p.sql, g.ID)

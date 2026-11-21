@@ -237,3 +237,26 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     angle per message (straight / specific not typical / very short / aside / complaint / question back), plus a 50%
     ban on opening with "just", brings it back to 0.128 overlap and 28% same first word, with no regressions on the
     code metrics. It has not been judged yet. Turn it off with `-features -angle` to reproduce v2b.
+
+## Real AI seats (M3: server/internal/agent/llm.go)
+
+69. **`agent.LLM` is the real seat; the stub stays the fallback.** Without `OPENROUTER_API_KEY`, or with
+    `AI_MODE=stub`, AI seats use the canned stub, so local dev needs no key. `bot_human` seats always use the stub.
+    One pipeline run per slot; ANSWER runs one per question, in parallel, under the hub's deadline (phase end − 3s).
+    Errors, timeouts and a missing persona come back as skips through `agent.Resolve` (invariant 6).
+70. **Seat model and persona are per seat (`hub.Options.AISeats`).** Models come from `AI_SEAT_MODELS`,
+    round-robin. Personas come from `ai.PersonaPool` (6 hackathon-plausible personas), 3 per game with distinct
+    typing styles (`ai.PickPersonas`). The persona is stored on `seats.persona` and never sent to clients
+    (invariant 1, tested). Llama slugs are refused at startup.
+71. **Every LLM call is its own `ai_calls` row** (`Reply.Calls`): seat call, echo retry, critic, vote. Each row has
+    the request (model, temperature, messages), draft, final, actual provider, tokens and cost (`cost_usd`,
+    migration 003). The hub persists them even when the phase times out. The stub keeps its single summary row.
+72. **Flags go on the message row.** `messages.broke_character` (invariant 7: the text is never altered) and the new
+    `messages.out_of_game` (the safety valve) are set from the pipeline result. An honest safety-valve reply that says
+    "I'm an AI player" carries both flags. Filter on `out_of_game` to separate it from a real character break.
+73. **The persona's `skip_rate` is rolled after the call, never on a safety-valve reply.** Rolling before the call
+    would be cheaper, but it could silence someone in a real emergency. One wasted call per skip is the price.
+74. **Defaults: `PROMPT_VERSION=v2`, no critic, `GAME_TZ=Europe/Berlin`** (the seats' clock; `time/tzdata` is
+    embedded because the distroless image has no zoneinfo). `DIFFICULTY=directed` logs a warning and plays
+    `independent`: the director, the generated personas and the post-game analysis are in `internal/ai` but not
+    yet called by the hub. Known tactics are not injected yet either (`LLM.KnownTactics` is the hook, empty for now).
