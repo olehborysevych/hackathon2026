@@ -13,6 +13,8 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY server/ ./server/
+# The server embeds the prompt files (package hackathon2026/prompts, server/internal/ai).
+COPY prompts/ ./prompts/
 COPY --from=web /web/out/ ./server/cmd/server/web/
 RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/server ./server/cmd/server
 
