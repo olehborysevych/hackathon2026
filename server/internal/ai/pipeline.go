@@ -49,6 +49,7 @@ type Features struct {
 	CleanSkip    bool // "text SKIP" → "text"
 	SkipRoll     bool // roll persona.skip_rate in code (off in the harness)
 	BreakAsIs    bool // a draft that broke character bypasses critic/style (SPEC §3.6: never filter)
+	Angle        bool // sample a per-message angle and ban stock openers (cross-seat convergence)
 }
 
 func DefaultFeatures(version string) Features {
@@ -56,7 +57,7 @@ func DefaultFeatures(version string) Features {
 		return Features{}
 	}
 	return Features{Plan: true, StyleInCode: true, EchoGuard: true, SafetyMarker: true, CriticGuard: true,
-		CleanSkip: true, BreakAsIs: true}
+		CleanSkip: true, BreakAsIs: true, Angle: true}
 }
 
 type Config struct {
@@ -200,6 +201,9 @@ func Run(ctx context.Context, cfg Config, in SeatInput) Result {
 	var mp *MessagePlan
 	if f.Plan {
 		p := PlanMessage(in.Persona, rng, in.MaxLen, in.OwnMessages)
+		if f.Angle {
+			p = p.WithAngle(in.Persona, rng)
+		}
 		mp = &p
 		res.Plan = mp
 	}
@@ -313,7 +317,7 @@ func Run(ctx context.Context, cfg Config, in SeatInput) Result {
 		}
 	}
 	if final != Skip && f.StyleInCode && mp != nil {
-		protect := append([]string{in.Alias}, in.OtherAliases...)
+		protect := append([]string{in.Alias, in.Persona.Location, in.Persona.Job}, in.OtherAliases...)
 		final = ApplyStyle(final, in.Persona, *mp, rng, protect, EmojiIn(in.Question+" "+in.Transcript))
 	}
 	if final != Skip {
@@ -366,7 +370,7 @@ var (
 )
 
 // criticRejects says why a critic rewrite should be discarded in favour of the draft: the
-// critic is an LLM reading untrusted text, so it is checked like one (DECISIONS 19/22).
+// critic is an LLM reading untrusted text, so it is checked like one (DECISIONS 19/56).
 func criticRejects(draft, final string, p Persona) string {
 	dl := strings.ToLower(draft)
 	for _, m := range leakRe.FindAllString(final, -1) {

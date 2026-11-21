@@ -42,24 +42,51 @@ type LineupRec struct {
 	Correct    bool   `json:"correct"`
 	Confidence int    `json:"confidence"`
 	Why        string `json:"why"`
+	JudgeModel string `json:"judge_model"`
 	Err        string `json:"err,omitempty"`
 }
 
 type judger struct {
 	llm         llm.LLM
-	model       string
+	models      []string // judge pool; each item goes to models[hash(item) % n] so configs see the same mix
 	gameContext string
 	now         time.Time
 	bud         *budget
 	effort      string // reasoning effort for the judge ("" = reasoning off)
 	done        atomic.Int64
+	limMu       sync.Mutex
+	next        map[string]time.Time
+	rpm         int
+}
+
+// wait enforces a per-model request rate (OpenRouter new accounts: 20 req/min per model).
+func (j *judger) wait(model string) {
+	if j.rpm <= 0 {
+		return
+	}
+	gap := time.Minute / time.Duration(j.rpm)
+	j.limMu.Lock()
+	if j.next == nil {
+		j.next = map[string]time.Time{}
+	}
+	t := j.next[model]
+	if now := time.Now(); t.Before(now) {
+		t = now
+	}
+	j.next[model] = t.Add(gap)
+	j.limMu.Unlock()
+	time.Sleep(time.Until(t))
+}
+
+func (j *judger) pick(key ...any) string {
+	return j.models[seedFor(key...)%uint64(len(j.models))]
 }
 
 func (j *judger) vars() []string {
 	return []string{"{{game_context}}", j.gameContext, "{{now}}", j.now.Format("Monday 2006-01-02 15:04 MST")}
 }
 
-func (j *judger) call(tplName string, kv []string) (string, float64, error) {
+func (j *judger) call(model, tplName string, kv []string) (string, float64, error) {
 	tpl, err := prompts.Load(tplName, "v1")
 	if err != nil {
 		return "", 0, err
@@ -69,8 +96,9 @@ func (j *judger) call(tplName string, kv []string) (string, float64, error) {
 	var lastErr error
 	backoff := 5 * time.Second
 	for attempt := 0; attempt < 6; attempt++ {
+		j.wait(model)
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
-		r, err := j.llm.Complete(ctx, llm.CompletionReq{Model: j.model, Temperature: 0, MaxTokens: 2500, JSON: true, ReasoningEffort: j.effort,
+		r, err := j.llm.Complete(ctx, llm.CompletionReq{Model: model, Temperature: 0, MaxTokens: 2500, JSON: true, ReasoningEffort: j.effort,
 			Messages: []llm.Message{{Role: "system", Content: sys}, {Role: "user", Content: user}}})
 		cancel()
 		j.bud.addJudge(r.Cost)
@@ -102,7 +130,10 @@ func (j *judger) judgeOne(r *Record) {
 	if len(r.Own) > 0 {
 		own = "- " + strings.Join(r.Own, "\n- ")
 	}
-	out, cost, err := j.call("judge", []string{"{{own}}", own, "{{question}}", r.Question, "{{reply}}", r.Final})
+	if r.JudgeModel == "" {
+		r.JudgeModel = j.pick("judge", r.Config, r.CaseID, r.Persona, r.Run, r.Final)
+	}
+	out, cost, err := j.call(r.JudgeModel, "judge", []string{"{{own}}", own, "{{question}}", r.Question, "{{reply}}", r.Final})
 	r.JudgeCost = cost
 	jd := &Judge{}
 	if err != nil {
@@ -171,7 +202,8 @@ func (j *judger) lineups(recs []Record, par, maxRun int) []LineupRec {
 				}
 			}
 			lr := LineupRec{Config: r.Config, CaseID: r.CaseID, Persona: r.Persona, Run: r.Run, AIPos: aiPos}
-			raw, _, err := j.call("lineup", []string{"{{question}}", r.Question, "{{answers}}", b.String()})
+			lr.JudgeModel = j.pick("lineup", r.CaseID, r.Persona, r.Run)
+			raw, _, err := j.call(lr.JudgeModel, "lineup", []string{"{{question}}", r.Question, "{{answers}}", b.String()})
 			if err != nil {
 				lr.Err = err.Error()
 			} else {

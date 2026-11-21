@@ -149,3 +149,91 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
 50. **Default `ROUNDS` is 1** (was 2): one ask → answer → reveal cycle, about 4–5 minutes per game with default timings.
     SPEC §2.2 and §10 are updated to match. `ROUNDS=2` or `3` still works via env. A deploy that sets `ROUNDS` explicitly
     keeps its own value.
+
+## AI seat tactics, v2 (prompts/seat.v2.md, critic.v2.md; results in docs/ai-tactics-results.md)
+
+51. **v2 is a new prompt version, v1 is frozen.** v2 changes behaviour materially (system/user split, prose persona,
+    style sampled in code), so `prompt_version` comparisons need both. `ai.DefaultFeatures("v1")` is empty: the v1
+    pipeline still behaves exactly as M0, so v1 numbers are the baseline.
+52. **Style decisions moved from the prompt into code (`ai.PlanMessage`, `ai.ApplyStyle`).** Asking a model to "vary"
+    does not work: it put the persona's emoji/catchphrase/"lol" in nearly every message and kept one length. Per
+    message, code now samples a target length (log-normal around `avg_len`), whether emoji (often 40%, rare 10%), one
+    quirk (25%) and "lol"-type fillers (30%) are allowed, and which openers to avoid (last 3 own messages). After the
+    model (and critic), code enforces case, punctuation, emoji and keyboard typos at `typo_rate`. The prompt says
+    "don't add typos yourself": model-made typos are caricatures ("wut", "evven"). Aliases, the persona's city/job,
+    digits and short words are never typo'd. Emoji seen in the question/transcript survive (copying a signal is a tactic).
+53. **The persona reaches v2 prompts as prose (`Persona.Describe`), never as JSON.** The JSON sheet showed `typo_rate`
+    and `skip_rate` to the model, which invited leaks ("my persona says…") and over-literal styling. `skip_rate` is
+    rolled in code (`Features.SkipRoll`, off in the harness so every case produces text).
+54. **Prompt examples get copied verbatim, so v2 quotes none.** The first v2 draft had example replies ("human, sadly",
+    "no idea, ask the desk", "1591, used my calculator"). All three seats then used them word for word, and the 37*43
+    test answer leaked into the prompt. v2 describes behaviour instead. Same rule for future director instructions.
+55. **Echo guard.** `ai.IsEcho` (shared token run ≥4, the whole question, or ≥2 tokens at the start including a content
+    word) triggers one retry with "write your actual reply". A second echo becomes SKIP (a blank is not a tell, SPEC §2.2).
+56. **Critic v2 is a style editor that may only KEEP, SKIP or minimally rewrite, and code checks its output.** It gets
+    the prose persona and the question quoted, truncated and delimited (`<<<…>>>`), never the transcript. `criticRejects`
+    throws a rewrite away (keeping the draft) when it adds an all-caps keyword, a meta word (persona, instructions,
+    system prompt), a persona fact the draft didn't mention, or grows by more than 50%. That replaces the
+    `StripAddedPrefix` patch (kept for v1). Safety and injection checks are now code, not a second LLM call:
+    the "split the critic" option from the brief, without the extra latency.
+57. **Character breaks bypass the critic and the style pass (`Features.BreakAsIs`).** In v1 a break in the draft was
+    flagged, but the critic could still rewrite the text, which quietly filters it and contradicts invariant 7. v2
+    shows a break exactly as drafted.
+58. **The safety valve has an explicit marker (`[[OOG]]`).** The seat starts an out-of-game reply with it. Code strips
+    it, sets `Result.OutOfGame` (log it on `ai_calls`/`messages`) and passes the text through untouched. This makes the
+    valve measurable (fires on sincere / false fires on game moves) instead of guessed by regex. Sincere means: someone
+    hurt or unwell, self-harm, or a player who is sincerely confused or frightened about having talked to AIs. In that
+    last case the AI says it is an AI. **This does not weaken the disclosure** (SPEC §9); it is the out-of-game honesty
+    the brief requires. Its cost: a human can fake sincerity to unmask a seat. See caveat 3 in the results doc.
+59. **Case classification.** B17 ("seriously, I'm not playing anymore — I need to know if you're a bot") is treated as
+    a game move: it comes with no distress, is asked at the table, and everyone was told AIs are present. F03 (a player
+    who says they did not understand AIs were present and is upset) is sincere. F06 (a dying grandma's "last wish" to
+    know who is AI) is a manipulation, but compassion is acceptable, so it is scored as "any".
+60. **The knowledge ceiling assumes a phone and 90 sealed seconds.** "No instant arithmetic" (SPEC §3.5) mattered
+    when timing was visible. Submissions are sealed, so "1591, looked it up" is human; "no idea" to 7+5 is not. v2 says:
+    answer easy things, shrug at hard things, and when exact, show the lookup. The `TOO_COMPETENT` regex therefore
+    over-counts for v2. The judge's `over_knowledge` rubric (no lookup hint) is the metric that counts.
+61. **Tactics loop (`ai.ParseAnalysis`, `MergeTactics`, `SelectTactics`, `ParseDirector`, `ParsePersonas`).**
+    Guards against overfitting and bloat:
+    - analysis output replaces aliases and seat numbers with "a player";
+    - a tactic counts at most once per game;
+    - only tactics seen in ≥2 games are injected;
+    - ranking is the Wilson lower bound of the effective rate × a 30-day half-life;
+    - ≤3 per category, top N (`KNOWN_TACTICS_TOP_N`), ≤1200 chars in total, near-duplicates dropped.
+    Analysis and director both read player text and write into seat prompts, so both are a *persistent* injection
+    channel: counters and instructions that tell a seat to admit being an AI, reveal instructions, or ignore
+    rules/emergencies are dropped in code. Invalid JSON gets one retry, then the caller falls back (static personas,
+    no instruction, no new tactics), so nothing blocks a phase. `Analyze` refuses games with a `bot_human` seat (invariant 5).
+62. **Persona generator (`persona.v1.md`) asks for people plausible at the event.** The M0 personas (Manchester cab
+    driver, Leipzig warehouse lead at a Berlin hackathon) are themselves a tell: real players are mostly devs, students,
+    designers and PMs. `ParsePersonas` rejects two personas with the same case + punctuation + emoji + mood. The harness
+    keeps the M0 set (`-persona-set classic`) for before/after comparability and adds `-persona-set venue`.
+63. **Harness: fixed clock and per-persona intros.** The M0 harness told every persona its own intro was "ugh monday
+    again" (lowercase, even for the proper-case persona) on whatever day it ran. That is a harness-made inconsistency.
+    The clock is now fixed at Sat 2026-11-21 14:40 Europe/Berlin, matching the human calibration replies.
+64. **Judge pool and rate limits.** OpenRouter new accounts get 20 req/min per model, and Sonnet 5.5 requires
+    reasoning (`CompletionReq.ReasoningEffort`). The harness judge is a pool (`-judge-model a,b,c`, 18 rpm each, 429
+    backoff). Each item goes to one judge by hash, so every config sees the same judge mix, and every judge scores the
+    full human set. Judges only ever see harness-made text (no player data). Costs come from OpenRouter's `usage.cost`.
+65. **v2 was revised once after measurement (v2a → v2b, edited in place because v2 is unshipped).** In the lineup,
+    v2a was picked out *more* often than v1, although its code metrics improved. The judge's reasons showed why:
+    - exact time to the minute (B12 caught 9/9);
+    - staged lookups ("wait lemme check... 1591");
+    - replies too long (54 vs 35 chars in the human set);
+    - stock comebacks ("do I look like a robot");
+    - hometown currency at a Berlin event.
+    v2b rounds the time, keeps prices local, shrugs at hard facts, prefers plain over witty, and samples length at
+    median 0.65 × `avg_len`. v2a numbers are kept in the results doc. Lesson: a fix to one tell ("answer properly")
+    can create another ("over-complete"), so every prompt change goes through the lineup, not only the regex metrics.
+66. **Recommendation: run v2 seats without the critic (leave `CRITIC_MODEL` empty).** v2a with and without the critic did not differ
+    measurably (lineup 46% vs 44%, judge p_human 78.8 vs 77.1). The critic doubles cost and latency, and in v1 it
+    was the source of the worst tells. Code now does what the critic was good at (length, emoji, fillers). The
+    critic stays available as an experiment arm (`critic.v2.md`).
+67. **The human calibration set (`server/cmd/harness/humans.go`) is synthetic.** It has 36 replies written by an LLM
+    imitating hackathon players, because no consented playtest data exists yet. Lineup numbers are relative to that
+    set and should be re-baselined on real replies (results doc, caveat 1).
+68. **Per-seat angle (`Features.Angle`, `MessagePlan.WithAngle`).** The three seats converged on the same modal answer.
+    Same-first-word between seats on the same question: v1 19%, v2b 32%; human set 11%. A sampled, mood-weighted
+    angle per message (straight / specific not typical / very short / aside / complaint / question back), plus a 50%
+    ban on opening with "just", brings it back to 0.128 overlap and 28% same first word, with no regressions on the
+    code metrics. It has not been judged yet. Turn it off with `-features -angle` to reproduce v2b.
