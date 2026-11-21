@@ -77,3 +77,46 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     the palette and components. Fonts come from `next/font/google`, which self-hosts them at build time. Dev runs `next dev`
     with rewrites to `:8080`. Production uses `output: 'export'`, which is embedded in the Go binary.
 27. **Pinned Go deps (`pgx v5.7.2`, `x/crypto v0.31.0`)** so `go.mod` stays at `go 1.23`. Newer releases force Go 1.26.
+
+## Dummy game: M1 + M2 with stub AI seats
+
+28. **`internal/game` mutates in place and returns effects** (`Broadcast`, `SendTo`, `SetTimer`, `RunAgent`, `Persist`,
+    `Finished`) instead of returning a copied state. One goroutine owns each game, so a copy buys nothing. Time and
+    randomness are injected (`now` on every call, a seeded `*rand.Rand`), so tests are deterministic.
+29. **Reveal order is fixed: by question, then by seat index.** It never depends on who submitted first, since AI seats
+    answer instantly. A skip and a missing submission both reveal as `text: null` (shown as `—`). In the DB they differ:
+    a timed-out slot is stored as `skipped=true, submitted_at=null`.
+30. **Submissions are final.** A second submission for the same slot is rejected. The same goes for votes ("Locked once
+    cast", design). In ANSWER a seat sends one message per question; the phase ends early when every seat has answered or
+    skipped every question that isn't its own. An ANSWER phase with no questions ends at once. REVEAL always runs its full time.
+31. **Round numbers:** INTRO is round 0, ASK/ANSWER/REVEAL are 1..ROUNDS, and VOTE/RESULT keep the last round. `note_events.round`
+    uses the same numbering.
+32. **`bot_human` seats play the human role for scoring** (their votes count, and votes for them count as found), so a solo
+    tester sees real scoring. They are excluded from stats and export through the `real_games` view (finished games with no
+    `bot_human` seat). Export and any future leaderboard or stats query must read from `real_games`.
+33. **The AI seam is `agent.Agent`** (`Act(ctx, Request) (Reply, error)`), called once per seat per phase with a deadline
+    of phase end − 3s. `agent.Resolve` turns any reply, error or timeout into one valid submission per slot (failures and
+    blanks become skips, over-long text is cut, unknown ids are dropped), which then goes through the same `Game.Submit`
+    a human uses. M3 replaces `agent.Stub` with an adapter over `internal/ai` and leaves the hub alone.
+34. **Stub seats log to `ai_calls`** with provider/model `stub` and `prompt_version` `stub`, so the pipeline logging path is
+    exercised before M3. `games.difficulty` is `stub` for these games. `bot_human` seats are not logged as AI calls.
+35. **Extra server→client messages** not listed in SPEC §7: `vote.ack` and `note.ack` (sent to the sender only, like
+    `submit.ack`), and `queue.status` also carries `queued` and `humans_needed`. `phase.start` and `game.snapshot` carry
+    `server_ts` so the client can correct clock skew in the countdown. `game.start`'s `config` includes the phase durations.
+    `GET /api/config` returns the same public config, so the start screen shows the real timings.
+36. **One WebSocket per tab, shared across pages.** The client keeps it across client-side navigation, reconnects with
+    backoff, and sends `game.resync` on every (re)connect from the table screen. The server allows several connections per
+    user and fans out to all of them. A user whose last connection closes leaves the queue but keeps their seat.
+    `queue.join` while seated answers with that game's `game.snapshot`, so the matching screen jumps back to the table.
+37. **WS origin check:** `coder/websocket` accepts only an `Origin` whose host equals the request `Host`. `WS_ORIGINS`
+    (comma-separated host patterns) adds more; `make dev` sets `localhost:3000`, because `next dev` doesn't proxy WebSockets and
+    the browser connects to `:8080` directly. If Railway's edge ever rewrote `Host`, setting `WS_ORIGINS=<public domain>` fixes it.
+38. **`github.com/coder/websocket v1.8.12`** (needs Go 1.19), so `go.mod` stays at `go 1.23`.
+39. **Finished games stay in memory for 10 minutes** so a reload still shows the result. After that `game.resync` answers
+    `game_not_found` and the client shows "Table closed". On start, games left `running` by a previous process are marked
+    `aborted` (in-memory state doesn't survive a restart, SPEC §5).
+40. **`T_*` are whole seconds with a minimum of 5**, because agent calls must finish 3s before the deadline.
+41. **Persistence runs on a per-game writer goroutine** with an ordered, buffered queue, so a slow database never delays a
+    phase. Write errors are logged, never shown to players.
+42. **Note markers (`note.set`) are implemented server-side** (validated, persisted as `note_events`, returned in the
+    snapshot to their owner only). There is no UI yet (M5).

@@ -1,4 +1,36 @@
-.PHONY: test vet harness experiments
+.PHONY: test vet harness experiments db build run dev export
+
+# Local Postgres from docker-compose.yml. Override DATABASE_URL to use another database.
+DATABASE_URL ?= postgres://hackathon:hackathon@localhost:5432/hackathon?sslmode=disable
+export DATABASE_URL
+
+db:
+	docker compose up -d --wait postgres
+
+web/node_modules: web/package.json web/package-lock.json
+	cd web && npm ci --no-audit --no-fund
+	touch web/node_modules
+
+# Static web export embedded into the Go binary (same steps as the Dockerfile).
+build: web/node_modules
+	cd web && npm run build
+	find server/cmd/server/web -mindepth 1 ! -name .gitkeep -delete
+	cp -R web/out/. server/cmd/server/web/
+	go build -o bin/server ./server/cmd/server
+
+# Postgres in docker + the built binary on http://localhost:8080. Game env vars pass through:
+#   T_INTRO=15 T_ASK=15 T_ANSWER=20 T_REVEAL=10 T_VOTE=15 DEV_BOT_HUMAN_AFTER_SEC=5 make run
+run: db build
+	./bin/server
+
+# Hot reload: Go on :8080, next dev on :3000 (open http://localhost:3000). The browser opens the
+# WebSocket straight to :8080, so that origin is allowed here.
+dev: db web/node_modules
+	trap 'kill 0' EXIT; WS_ORIGINS=localhost:3000 go run ./server/cmd/server & (cd web && npm run dev)
+
+# JSONL per finished game without bot_human seats.
+export:
+	@go run ./server/cmd/export
 
 test:
 	go test ./...

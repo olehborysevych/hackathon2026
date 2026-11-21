@@ -3,14 +3,24 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError, type Me } from "@/lib/api";
+import type { PublicConfig } from "@/lib/ws";
 import { Disclosure } from "./components";
 
-// Start screen (design/game-room/start.html). Matchmaking is not built yet, so the
-// "Ready to play" button is disabled for now.
+const DEFAULT_CONFIG: PublicConfig = {
+  seats: 5, humans: 2, rounds: 2, max_intro: 160, max_ask: 160, max_answer: 200,
+  t_intro: 60, t_ask: 45, t_answer: 90, t_reveal: 30, t_vote: 45,
+};
+
+// Start screen (design/game-room/start.html). "Ready to play" goes to the matching screen.
 export default function StartPage() {
   const router = useRouter();
   const [me, setMe] = useState<Me | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [cfg, setCfg] = useState<PublicConfig>(DEFAULT_CONFIG);
+
+  useEffect(() => {
+    api.config().then(setCfg).catch(() => {});
+  }, []);
 
   useEffect(() => {
     api
@@ -63,15 +73,16 @@ export default function StartPage() {
       <section className="panel">
         <h2>How a game works</h2>
         <ol className="steps">
-          <li><span className="n">1</span><span>Intro: say hi, 160 characters, optional</span><span className="t">60 SEC</span></li>
-          <li><span className="n">2</span><span>Ask: one question for the table</span><span className="t">45 SEC</span></li>
-          <li><span className="n">3</span><span>Answer: reply to each question, skip any</span><span className="t">90 SEC</span></li>
-          <li><span className="n">4</span><span>Reveal: all answers appear at once</span><span className="t">30 SEC</span></li>
-          <li><span className="n">5</span><span>Vote: pick the seat you think is the other human</span><span className="t">45 SEC</span></li>
+          <li><span className="n">1</span><span>Intro: say hi, 160 characters, optional</span><span className="t">{cfg.t_intro} SEC</span></li>
+          <li><span className="n">2</span><span>Ask: one question for the table</span><span className="t">{cfg.t_ask} SEC</span></li>
+          <li><span className="n">3</span><span>Answer: reply to each question, skip any</span><span className="t">{cfg.t_answer} SEC</span></li>
+          <li><span className="n">4</span><span>Reveal: all answers appear at once</span><span className="t">{cfg.t_reveal} SEC</span></li>
+          <li><span className="n">5</span><span>Vote: pick the seat you think is the other human</span><span className="t">{cfg.t_vote} SEC</span></li>
           <li><span className="n">6</span><span>Result: see who was who and who found whom</span><span className="t">—</span></li>
         </ol>
         <p style={{ margin: "12px 0 0", fontSize: 20 }}>
-          Two rounds of ask, answer and reveal. A full game takes about 7 to 8 minutes.
+          {cfg.rounds === 1 ? "One round" : `${cfg.rounds} rounds`} of ask, answer and reveal. A full game takes up to about{" "}
+          {Math.ceil((cfg.t_intro + cfg.rounds * (cfg.t_ask + cfg.t_answer + cfg.t_reveal) + cfg.t_vote) / 60)} minutes.
         </p>
       </section>
 
@@ -95,8 +106,8 @@ export default function StartPage() {
       <section className="panel ready">
         <h2 style={{ marginBottom: 0 }}>Ready?</h2>
         <p>Signed in as <b>{me.username}</b></p>
-        <button className="big-btn" disabled>Ready to play</button>
-        <p>Tables open soon. You&apos;re all set.</p>
+        <button className="big-btn" onClick={() => router.push("/match")}>Ready to play</button>
+        <p>You&apos;ll sit down with the next human in the queue.</p>
       </section>
     </main>
   );
