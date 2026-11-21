@@ -280,3 +280,51 @@ reverse it. Game rules and API decisions stay in `SPEC.md` unless they are liste
     - intros get +15% skip on top of the persona's `skip_rate` (`LLM.IntroExtraSkip`); real intros are optional
       and often blank.
     Not yet run through the judge or lineup.
+
+## Game UI finalised (web/app/game, matching the design/game-room mockups)
+
+76. **Suspicion slider ↔ SPEC §4 marks (closes the open point in 4).** The five stops map one-to-one onto the
+    five marks, in order: AI → `ai`, Leaning AI → `!`, Unsure → `none`, Leaning human → `?`, Human → `human`.
+    Unsure is the default (the knob starts in the middle), so an untouched seat is `none`, as before. The SPEC marks
+    have no "leaning human", so `?` takes that stop. Read it as "human?". Every ◀ ▶ step sends `note.set` with the
+    mark and the current note, because the server replaces the whole record. Each step is therefore one `note_events`
+    row: the hypothesis trail SPEC §4 asks for. The 60-char private note sits under the slider ("+ note", inline
+    input, Enter or blur saves). Marks and notes come back in `game.snapshot`, so they survive phases and reloads.
+    The protocol is unchanged.
+77. **Past phases are read-only in ▲ / ▼ review (closes the open point in 6).** When a past phase is on screen, the
+    composer has no textarea and no Send or Skip. It turns dashed and darker, is labelled "Looking back · PHASE ·
+    read-only", shows what you said in that phase (or "—"), and has a "Back to live" button. The hanging sign and
+    the ▲ / ▼ box change colour too. The live countdown keeps running on the sign. A new `phase.start` always returns
+    you to the live phase, so you cannot miss a phase while looking back. Drafts are kept per slot, so a half-written
+    answer survives a trip into review and back.
+78. **Before the reveal, an empty speech box says "sealed", not "…".** The mockup used "…". In a speech bubble, that
+    reads as a typing indicator (CLAUDE.md "Don't"). "sealed" is static and the same for every seat.
+79. **What each speech box shows** (DECISIONS 7):
+    - INTRO live: sealed.
+    - ASK live, VOTE and RESULT: intros.
+    - Past ASK: each seat's question.
+    - ANSWER: the asker's question, highlighted; the others are sealed.
+    - REVEAL: the answers to the question on the table. The asker's box keeps the question, highlighted.
+    Skips and missing submissions both show "—". In ANSWER the table starts on the first question that isn't yours.
+    After you send an answer, it moves on to your next unanswered question.
+80. **Speech boxes are anchored at the bottom**, so long text grows upwards, away from the medallion. The stage is
+    900 px wide (the mockup used 820) to fit 200-character answers. At the limit, no two boxes overlap (checked in
+    the browser with 200 characters in every box). The stage scales down to fit the page width from 720 px up.
+81. **Narrow screens (< 720 px) reflow the same elements with CSS only:**
+    - The scene is hidden, and seats become a 2-column grid of cards (speech box, medallion, name, slider).
+    - Your medallion and composer span the full width, and ▲ / ▼ becomes a horizontal bar.
+    - The table card shows only while it holds a question (ANSWER and REVEAL); in other phases the sign already has
+      the title, hint and countdown.
+    - A ◀ ▶ question switcher repeats inside the composer, because the table is a long scroll away.
+    - There is no horizontal scroll at 375 px.
+82. **Result screen follows result.html.** It shows:
+    - the verdict (mutual is titled "You found each other ✓", SPEC §8);
+    - two cards (did you guess right, were you found);
+    - the points breakdown;
+    - the table unmasked, with human / AI + model and votes received;
+    - the vote list with arrows, where AI votes are labelled "not scored".
+    A `bot_human` seat shows as "Human · bot". "Review the table" opens the table with role pills on the medallions,
+    and ▲ / ▼ works there too. The full transcript (SPEC §8) is folded under the table ("Full transcript"), because
+    the table shows one question at a time.
+83. **The matching screen shows every seat at the table** (from `/api/config`), as matching.html does. On
+    `game.start` it fills all seats with their sprites, says "Table ready" for about a second, then sits down.
