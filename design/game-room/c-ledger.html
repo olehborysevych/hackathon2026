@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C · Ledger</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Variant C — Ledger: three columns. Seats on the left as a suspicion notebook, the phase in the centre, the journal on the right. */
+  .wrap{max-width:1180px;margin:0 auto;padding:0 16px 40px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--gold);font-size:13px}
+  .pill{background:var(--parch);color:var(--ink);border:3px solid var(--ink);padding:6px 8px;font-size:10px}
+  .cols{display:grid;grid-template-columns:270px 1fr 360px;gap:16px;margin-top:14px;align-items:start}
+  .panel{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:14px}
+  .panel-dark{background:var(--wood);color:var(--parch);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:14px}
+  .panel-dark .px{color:var(--gold)}
+  .rail .seat{display:flex;flex-wrap:wrap;align-items:center;gap:8px;text-align:left;margin-bottom:12px;padding:8px}
+  .rail .seat canvas.sprite{width:48px;height:48px;margin:0}
+  .rail .seat .alias{flex:1;margin:0}
+  .rail .seat .tag{margin:0}
+  .rail .seat .marks{justify-content:flex-start;margin-top:4px;width:100%}
+  .rail .seat .note{width:100%}
+  .rail .seat.me{background:var(--parch-d)}
+  .phase-list{list-style:none;padding:0;margin:0 0 14px;display:grid;gap:4px}
+  .phase-list li{font-family:'Press Start 2P',monospace;font-size:8px;padding:6px 8px;border:2px solid var(--ink);background:var(--wood);color:var(--parch-d)}
+  .phase-list li.done{background:var(--parch-d);color:var(--ink)}
+  .phase-list li.now{background:var(--gold);color:var(--ink)}
+  .stage .px.title{font-size:16px;color:var(--gold);margin-bottom:6px}
+  .stage .timer{font-family:'Press Start 2P',monospace;font-size:28px;color:var(--gold);margin-top:6px}
+  .journal .log{max-height:640px;overflow:auto;padding-right:6px}
+  .journal .ent.q{margin-top:10px}
+  .journal .ent.a{padding-left:14px}
+  .journal .empty{color:var(--grey)}
+  @media (max-width:980px){
+    .cols{grid-template-columns:1fr 1fr}
+    .rail{grid-column:1/-1}
+    .rail .list{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .rail .seat{margin:0}
+    .journal{grid-column:1/-1}
+  }
+  @media (max-width:640px){
+    .cols{grid-template-columns:1fr}
+    .rail .list{grid-template-columns:1fr}
+    .journal .log{max-height:none}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+function renderC(phase){
+  const p = PHASES[phase], c = composeData(phase);
+  const entries = transcriptEntries(phase);
+  const idx = PHASE_ORDER.indexOf(phase);
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="wrap">
+    <header class="top">
+      <div class="px logo">Find the Human</div>
+      <div class="px pill">Round 1 / 2 · ${phase}</div>
+    </header>
+    <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+    <div class="cols">
+      <aside class="rail">
+        <div class="panel-dark">
+          <div class="px" style="font-size:10px;margin-bottom:12px">Seats</div>
+          <div class="list">
+            ${SEATS.map((_, i) => seatHTML(i, {reveal: phase === 'RESULT', selectable: phase === 'VOTE'})).join('')}
+          </div>
+        </div>
+      </aside>
+
+      <main class="stage">
+        <div class="panel">
+          <ol class="phase-list">
+            ${PHASE_ORDER.map((ph, i) => `<li class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${i < idx ? '✓ ' : i === idx ? '▶ ' : ''}${ph}</li>`).join('')}
+          </ol>
+          <div class="px title">${esc(p.title)}</div>
+          <p class="hint">${esc(p.hint)}</p>
+          <div class="timer" data-timer></div>
+          <div class="bar"><i data-bar></i></div>
+        </div>
+        <div class="panel" style="margin-top:16px">${composeHTML(c)}</div>
+      </main>
+
+      <section class="panel journal">
+        <div class="px" style="font-size:10px;color:var(--red);margin-bottom:8px">Journal</div>
+        <div class="log">${entries.length ? entries.map(entryHTML).join('') : '<p class="empty">Nothing written yet. Intros are sealed until the intro timer ends.</p>'}</div>
+      </section>
+    </div>
+  </div>`;
+  afterRender(app, phase);
+}
+mountControls(renderC);
+</script>
+</body>
+</html>

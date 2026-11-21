@@ -1,0 +1,69 @@
+/* Find the Human — game room mockups: shared tokens + components.
+   16-colour palette only. Flat fills, hard 2–3px borders, no gradients, no blur (SPEC §8). */
+:root{
+  --ink:#1b1220; --wood-d:#2a1a14; --wood:#5a3524; --wood-l:#8a5a36;
+  --parch:#f1e2bc; --parch-d:#d4b983; --gold:#e9b44c; --red:#c2503c;
+  --green:#6fa04a; --blue:#3f78a8; --purple:#7d56a0; --teal:#3e9c94;
+  --grey:#8c8579; --white:#fff6e0; --pink:#d9739a; --sky:#8fc3d9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--wood-d);color:var(--white);font-family:VT323,ui-monospace,Menlo,monospace;font-size:20px;line-height:1.15;overflow-x:hidden}
+body{min-height:100vh}
+.px{font-family:'Press Start 2P',ui-monospace,monospace;font-weight:400;text-transform:uppercase;line-height:1.5;letter-spacing:0}
+canvas.sprite{display:block;width:64px;height:64px;margin:0 auto;image-rendering:pixelated;image-rendering:crisp-edges}
+
+/* mockup controls (design-only bar) */
+.mockup-bar{position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;background:var(--ink);color:var(--gold);font-family:'Press Start 2P',monospace;font-size:9px;padding:8px 14px;border-bottom:2px solid var(--gold)}
+.mockup-bar select{font-family:'Press Start 2P',monospace;font-size:9px;background:var(--parch);color:var(--ink);border:2px solid var(--ink);padding:4px}
+
+.disclosure{background:var(--ink);color:var(--gold);border:3px solid var(--gold);padding:8px 12px;text-align:center;font-size:20px;line-height:1.2}
+
+.btn{font-family:'Press Start 2P',monospace;font-size:10px;line-height:1.3;padding:10px 12px;background:var(--gold);color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);cursor:pointer;text-transform:uppercase}
+.btn.ghost{background:var(--parch)}
+.btn:disabled{background:var(--grey);cursor:not-allowed;box-shadow:3px 3px 0 var(--ink)}
+
+/* seats */
+.seat{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:10px 8px 8px;text-align:center;min-width:0}
+.seat.me{border-color:var(--gold);box-shadow:4px 4px 0 var(--gold)}
+.seat.selectable{cursor:pointer}
+.seat.picked{outline:4px solid var(--red);outline-offset:2px}
+.seat .alias{font-family:'Press Start 2P',monospace;font-size:9px;line-height:1.5;margin:6px 0 4px;text-transform:uppercase}
+.tag{display:inline-block;font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.4;padding:3px 5px;border:2px solid var(--ink);background:var(--sky);color:var(--ink);margin-bottom:2px}
+.tag.you{background:var(--gold)}
+.tag.human{background:var(--green)}
+.tag.ai{background:var(--red);color:var(--white)}
+.marks{display:flex;flex-wrap:wrap;justify-content:center;gap:4px;margin-top:6px}
+.mk{font-family:'Press Start 2P',monospace;font-size:8px;min-width:30px;padding:4px 3px;border:2px solid var(--ink);background:var(--parch);color:var(--ink);cursor:pointer}
+.mk.on{background:var(--ink);color:var(--gold)}
+.note{font-size:18px;color:var(--purple);margin-top:4px;line-height:1.1}
+
+/* timer */
+.bar{height:14px;border:3px solid var(--ink);background:var(--wood-d);margin-top:8px}
+.bar i{display:block;height:100%;width:100%;background:var(--green)}
+
+/* transcript entries */
+.ent{padding:6px 0;border-bottom:2px dotted var(--parch-d);color:var(--ink)}
+.ent .who{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--blue);margin-right:8px;text-transform:uppercase}
+.ent .say{font-size:22px}
+.ent.q{background:var(--parch-d);padding:8px;margin-top:10px;border:2px solid var(--ink)}
+.ent.q .tagline{display:block;font-family:'Press Start 2P',monospace;font-size:9px;color:var(--red);margin-bottom:4px;text-transform:uppercase}
+.ent.a{padding-left:14px}
+.ent.a .say{color:var(--ink)}
+.ent.a.skip .say{color:var(--grey)}
+.ent.intro .who{color:var(--teal)}
+.ent.q .say{font-size:22px}
+
+/* composer */
+.kick{font-family:'Press Start 2P',monospace;font-size:10px;color:var(--red);margin-bottom:6px;text-transform:uppercase;line-height:1.5}
+.hint{margin:0 0 8px;font-size:21px}
+.qq{margin:6px 0 10px;font-size:22px;border-left:4px solid var(--ink);padding:2px 0 2px 10px}
+.ta{width:100%;font-family:VT323,monospace;font-size:22px;line-height:1.1;background:#fff8e6;color:var(--ink);border:3px solid var(--ink);padding:8px;resize:vertical;min-height:84px}
+.row{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+.count{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--ink)}
+.grow{flex:1}
+
+/* prototype flow bar: links between the five player screens */
+.flow{display:flex;gap:6px;flex-wrap:wrap;padding:10px 0 6px}
+.flow a{font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.4;color:var(--ink);background:var(--parch);border:3px solid var(--ink);padding:6px 8px;text-decoration:none;border-radius:8px;box-shadow:0 3px 0 var(--ink)}
+.flow a.on{background:var(--gold)}
+.flow a:hover{background:var(--parch-d)}

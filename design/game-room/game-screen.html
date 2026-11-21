@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game Screen · Round Table</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Game screen sketch — tavern, side-on perspective. You sit at the bottom centre; four others sit around the table. */
+  body{background:var(--wood-d)}
+  .room{position:relative;max-width:1000px;margin:0 auto;padding:0 16px 40px}
+  .content{position:relative;z-index:1}
+  .head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--gold);font-size:13px}
+
+  .sign-wrap{display:flex;flex-direction:column;align-items:center;margin-top:4px}
+  .ropes{display:flex;justify-content:space-between;width:260px}
+  .ropes i{display:block;width:4px;height:22px;background:var(--parch-d);border:2px solid var(--ink)}
+  .sign{background:var(--parch);color:var(--ink);border:4px solid var(--ink);box-shadow:5px 5px 0 var(--ink);padding:10px 22px;text-align:center;min-width:260px}
+  .sign .px{font-size:13px;color:var(--red)}
+  .sign .hint{margin:4px 0 0;font-size:20px}
+  .disclosure{margin:14px auto 0;max-width:620px;background:var(--ink);color:var(--gold);border:3px solid var(--gold);padding:8px 12px;text-align:center;font-size:19px;line-height:1.2}
+
+  /* 820 x 820 stage, scaled to fit the page width */
+  .stage-wrap{position:relative;width:100%;margin-top:8px}
+  .stage{position:absolute;left:50%;top:0;width:820px;height:900px;transform:translateX(-50%) scale(var(--s,1));transform-origin:top center}
+
+  /* scene: back wall with vertical boards, floor that recedes toward the wall */
+  .scene{position:absolute;left:0;top:0;width:820px;height:820px;overflow:hidden}
+  .back{position:absolute;left:0;right:0;top:0;height:430px;background:var(--wood)}
+  .back i{position:absolute;top:0;bottom:0;width:4px;background:var(--wood-d)}
+  .floor{position:absolute;left:0;right:0;top:430px;bottom:0;background:var(--wood-l)}
+  .floor i{position:absolute;left:0;right:0;height:3px;background:var(--wood)}
+  .lantern{position:absolute;top:70px;width:22px;height:30px;background:var(--gold);border:3px solid var(--ink);box-shadow:0 0 0 4px var(--wood-d)}
+
+  /* table: flattened ellipse with a visible edge (side-on view) */
+  .table{position:absolute;left:140px;top:262px;width:540px;height:290px;border-radius:50%;background:var(--wood);
+    border:6px solid var(--ink);box-shadow:0 18px 0 var(--ink);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:10px 50px;color:var(--parch)}
+  .table::before{content:"";position:absolute;left:24px;right:24px;top:24px;bottom:24px;border-radius:50%;border:3px solid var(--wood-l)}
+  .table .px{color:var(--gold);font-size:11px;margin-bottom:8px;position:relative}
+  .table .qtext{font-size:18px;line-height:1.1;margin:0;position:relative}
+  .table .timer{font-family:'Press Start 2P',monospace;font-size:13px;color:var(--gold);margin-top:8px;position:relative}
+  .table .bar{width:60%;margin-top:6px;position:relative}
+
+  /* seats: scale = depth (far seats smaller) */
+  .seat-at{position:absolute;transform:translate(-50%,-50%) scale(var(--k,1));width:140px}
+
+  /* players: round medallions, name ribbon, suspicion slider (no squares) */
+  .pl{display:flex;flex-direction:column;align-items:center;text-align:center}
+  .pl.votable{cursor:pointer}
+  .medal{width:76px;height:76px;border-radius:50%;background:var(--parch);border:4px solid var(--ink);box-shadow:0 5px 0 var(--ink),inset 0 0 0 4px var(--wood-l);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .medal canvas{width:58px;height:58px;margin:0}
+  .pl.picked .medal{border-color:var(--red);box-shadow:0 5px 0 var(--red),inset 0 0 0 4px var(--wood-l)}
+  .pl.me .medal{border-color:var(--gold)}
+  .name{margin-top:6px;background:var(--ink);color:var(--parch);font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.4;padding:5px 9px;border-radius:12px;text-transform:uppercase;white-space:nowrap}
+  .pill{margin-top:4px;font-family:'Press Start 2P',monospace;font-size:7px;padding:3px 7px;border-radius:10px;border:2px solid var(--ink);background:var(--sky);color:var(--ink)}
+  .pill.you{background:var(--gold)}
+  .pill.human{background:var(--green)}
+  .pill.ai{background:var(--red);color:var(--white)}
+
+  .sl-holder{width:100%;margin-top:8px}
+  .sl{display:flex;align-items:center;gap:6px}
+  .sl-btn{width:26px;height:26px;flex:none;border-radius:50%;border:3px solid var(--ink);background:var(--parch);color:var(--ink);font-size:10px;line-height:1;padding:0;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+  .sl-btn:active{transform:translateY(2px);box-shadow:none}
+  .track{position:relative;flex:1;height:14px;border-radius:7px;background:var(--wood-d);border:2px solid var(--ink)}
+  .track i{position:absolute;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:var(--parch-d)}
+  .knob{position:absolute;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;border-radius:50%;background:var(--gold);border:3px solid var(--ink);transition:left .15s}
+  .sl-scale{display:flex;justify-content:space-between;font-family:'Press Start 2P',monospace;font-size:6px;color:var(--parch-d);margin:4px 34px 0}
+  .sl-state{font-size:19px;color:var(--parch);margin-top:2px;line-height:1}
+
+  /* ANSWER: one question on the table, with its asker named */
+  .asked{font-size:9px;color:var(--gold);margin-bottom:6px}
+  .qnav{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 2px}
+  .qnav .px{font-size:9px;color:var(--parch)}
+  .qbtn{width:30px;height:30px;border-radius:50%;border:3px solid var(--ink);background:var(--parch);color:var(--ink);font-size:10px;padding:0;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+  .bub.asking{border-color:var(--gold);box-shadow:4px 4px 0 var(--gold)}
+  .bub.asking .who{color:var(--red)}
+  .seat-at .seat{padding:6px 4px 6px;box-shadow:3px 3px 0 var(--ink)}
+  .seat-at canvas.sprite{width:56px;height:56px}
+  .seat-at .alias{font-size:8px;margin:4px 0 2px}
+  .seat-at .marks{gap:2px;margin-top:4px}
+  .seat-at .mk{min-width:22px;font-size:6px;padding:2px}
+  .seat-at .note{display:none}
+  .seat-at .tag{font-size:6px;padding:2px 3px}
+
+  /* speech boxes */
+  .bub{position:absolute;transform:translate(-50%,-50%);width:240px;background:var(--parch);color:var(--ink);border:3px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);padding:8px 12px;font-size:18px;line-height:1.1;z-index:2}
+  .bub .who{display:block;font-family:'Press Start 2P',monospace;font-size:7px;color:var(--blue);margin-bottom:4px;text-transform:uppercase}
+  .bub.empty{background:var(--wood-d);color:var(--parch-d);border-style:dashed}
+  .bub.q{background:var(--parch-d)}
+  .bub.q .who{color:var(--red)}
+  .bub.skip{color:var(--grey)}
+  .bub::before,.bub::after{content:"";position:absolute;width:0;height:0;border-style:solid}
+  .tail-b::before{left:50%;bottom:-16px;margin-left:-10px;border-width:12px 10px 0 10px;border-color:var(--ink) transparent transparent transparent}
+  .tail-b::after{left:50%;bottom:-11px;margin-left:-7px;border-width:9px 7px 0 7px;border-color:var(--parch) transparent transparent transparent}
+  .tail-t::before{left:50%;top:-16px;margin-left:-10px;border-width:0 10px 12px 10px;border-color:transparent transparent var(--ink) transparent}
+  .tail-t::after{left:50%;top:-11px;margin-left:-7px;border-width:0 7px 9px 7px;border-color:transparent transparent var(--parch) transparent}
+
+  /* your own speech box: the composer */
+  .pnav{position:absolute;left:705px;top:580px;width:112px;z-index:3;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--parch);color:var(--ink);border:3px solid var(--ink);border-radius:14px;box-shadow:4px 4px 0 var(--ink);padding:8px 6px}
+  .pbtn{width:34px;height:34px;border-radius:50%;border:3px solid var(--ink);background:var(--wood);color:var(--parch);font-size:11px;line-height:1;padding:0;cursor:pointer;box-shadow:0 3px 0 var(--ink)}
+  .pbtn:active{transform:translateY(2px);box-shadow:none}
+  .pbtn:disabled{opacity:.35;cursor:default}
+  .plabel{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+  .plabel .px{font-size:7px;line-height:1.4}
+  .plabel b{font-size:9px;color:var(--red)}
+  .me-box{left:410px;width:540px;transform:translate(-50%,0);top:672px;padding:12px 14px;font-size:20px}
+  .me-box .kick{color:var(--red)}
+  .me-box .hint{margin:0 0 6px}
+  .me-box .qq{background:var(--parch-d);padding:4px 8px}
+  .me-box .ta{min-height:112px;max-width:none;border-radius:8px}
+  .me-box .ta{font-size:22px;line-height:1.15}
+  .me-box .row{margin-top:8px}
+  .me-box .btn{box-shadow:3px 3px 0 var(--ink)}
+
+  @media (max-width:640px){
+    .bub{width:150px;font-size:17px;padding:6px 8px}
+    .bub .who{font-size:6px}
+    .seat-at{width:112px}
+    .medal{width:60px;height:60px}
+    .medal canvas{width:46px;height:46px}
+    .table .qtext{font-size:17px}
+    .sign{min-width:0;width:100%}
+    .ropes{width:200px}
+    .me-box{width:340px}
+  }
+</style>
+</head>
+<body>
+<div class="room">
+  <div class="content" id="app"></div>
+</div>
+<script src="shared.js"></script>
+<script>
+// Stress test: every intro, question and answer is exactly 160 characters (the spec limit for intros/questions).
+// Empty slots (skips, no intro yet) stay empty.
+const LONG = [
+  "hi im blue. night shift nurse, here for the cider and a quiet corner, mostly here to see who turns out to be a robot lol so honestly yeah tbh anyway pls maybe..",
+  "rusty here. i fix forklifts for a living so if you need anything lifted or moved i am your guy, otherwise leave me alone please so honestly yeah tbh anyway pls.",
+  "hello everyone :) i like old films, bad coffee and long walks in the rain, if you like any of those we should be friends so honestly yeah tbh anyway pls maybe..",
+  "iron hare reporting in. no idea what this game is but the sign says find the human so im going to start asking questions so honestly yeah tbh anyway pls maybe..",
+  "amber here, just got here and the room is loud and warm, pls be nice to the new person, i promise i am a real human hehe so honestly yeah tbh anyway pls maybe..",
+  "whats the worst thing youve microwaved? i once tried to heat up a whole can of soup with the lid on and it went everywhere so honestly yeah tbh anyway pls maybe",
+  "is pineapple on pizza a crime or a cry for help? asking for a friend who will not stop eating it at 3am every single night so honestly yeah tbh anyway pls maybe",
+  "what time is it where you are right now? i have lost all track of time since i walked in and i need to know whats going on so honestly yeah tbh anyway pls maybe",
+  "crime, always crime, i had pineapple at my cousins wedding and it was honestly fine, dont judge me, the dough was good and nobody died lol so honestly yeah tbh.",
+  "a fork. dont ask me why, it was late, the bread was stale and the toaster had given up on me completely around midnight tonight so honestly yeah tbh anyway pls.",
+  "a whole egg in the microwave, it exploded all over the inside and the kitchen smelled like sulfur for a week, my landlord still asks so honestly yeah tbh anyway",
+  "cry for help but tasty, honestly i think it is a sign of a person who has given up on the rest of the menu and just wants bread so honestly yeah tbh anyway pls.",
+  "idk what a pizza is anymore lol, i have been eating the same instant noodles for three days straight and i honestly forgot the rest so honestly yeah tbh anyway."
+];
+let longNext = 0;
+const nextLong = () => LONG[longNext++ % LONG.length];
+INTROS.forEach(x => { if (x.text) x.text = nextLong(); });
+QUESTIONS.forEach(q => { q.text = nextLong(); });
+Object.values(ANSWERS).forEach(list => list.forEach(a => { if (a.text) a.text = nextLong(); }));
+
+// Sample 160-character answer used in the ANSWER composer (question 2).
+const LONG_ANSWER = 'crime, always crime, i had pineapple at my cousins wedding and it was honestly fine, dont judge me, the dough was good and nobody died lol, 10/10 would share!!!';
+ANSWERS.q2.find(a => a.seat === 0).text = LONG_ANSWER;
+
+// Stage 820 x 820 px. Table centre (410,420). Seat index 0 = you (bottom centre), 1..4 = other players.
+// Seat anchors: [x, y, scale]. Scale shrinks with distance from the viewer (perspective).
+const SEAT_POS = {
+  0: [410, 590, 1.12],   // you
+  1: [300, 205, 0.82],   // back left
+  2: [520, 205, 0.82],   // back right
+  3: [118, 430, 1.0],    // left
+  4: [702, 430, 1.0]     // right
+};
+// Speech box anchors for the four other players (centre of the box).
+const BUB_POS = {1: [280, 84], 2: [540, 84], 3: [112, 250], 4: [708, 250]};
+const pctX = v => (v / 820 * 100) + '%';
+const pctY = v => (v / 820 * 100) + '%';
+
+function fitStage(){
+  const wrap = document.querySelector('.stage-wrap'); if (!wrap) return;
+  const s = Math.min(1, wrap.clientWidth / 820);
+  wrap.style.setProperty('--s', s);
+  wrap.style.height = (900 * s) + 'px';
+}
+window.addEventListener('resize', fitStage);
+
+// Suspicion slider per other player. 0 = AI (far left) … 4 = Human (far right).
+// Kept across phases so a player's read survives the phase change.
+// Design note: the five stops are a proposal. SPEC §4 has marks none|?|!|human|ai; mapping is open.
+const STOPS = ['AI', 'Leaning AI', 'Unsure', 'Leaning human', 'Human'];
+const SLIDER = {1: 2, 2: 2, 3: 2, 4: 2};
+
+function sliderHTML(i){
+  const v = SLIDER[i];
+  const pct = v / 4 * 100;
+  const dots = [0, 25, 50, 75, 100].map(p => `<i style="left:${p}%"></i>`).join('');
+  return `<div class="sl" data-seat="${i}">
+      <button class="sl-btn" data-dir="-1" aria-label="Move ${esc(SEATS[i].alias)} toward AI">◀</button>
+      <div class="track">${dots}<span class="knob" style="left:${pct}%"></span></div>
+      <button class="sl-btn" data-dir="1" aria-label="Move ${esc(SEATS[i].alias)} toward human">▶</button>
+    </div>
+    <div class="sl-scale"><span>AI</span><span>HUMAN</span></div>
+    <div class="sl-state">${STOPS[v]}</div>`;
+}
+function playerHTML(i, o = {}){
+  const s = SEATS[i];
+  const rv = o.reveal ? REVEAL_SEATS[i] : null;
+  const tag = rv
+    ? `<span class="pill ${rv.kind}">${rv.kind === 'ai' ? 'AI · ' + esc(rv.model) : 'HUMAN'}</span>`
+    : (s.you ? '<span class="pill you">YOU</span>' : '');
+  const cls = ['pl', s.you ? 'me' : '', o.votable && !s.you ? 'votable' : ''].join(' ').trim();
+  return `<div class="${cls}" data-seat="${i}">
+    <div class="medal"><canvas class="sprite" width="16" height="16" data-seed="${s.seed}" aria-hidden="true"></canvas></div>
+    <div class="name">${esc(s.alias)}</div>${tag}
+    ${!s.you && !o.reveal ? `<div class="sl-holder">${sliderHTML(i)}</div>` : ''}
+  </div>`;
+}
+
+// Slider buttons step the value; vote picks on a medallion (only in VOTE).
+document.addEventListener('click', e => {
+  const pb = e.target.closest('.pbtn');
+  if (pb){
+    const next = PHASE_ORDER[PHASE_ORDER.indexOf(CUR_PHASE) + (+pb.dataset.p)];
+    if (next) renderGame(next);
+    return;
+  }
+  const q = e.target.closest('.qbtn');
+  if (q){
+    QIDX = (QIDX + (+q.dataset.q) + QUESTIONS.length) % QUESTIONS.length;
+    renderGame(CUR_PHASE);
+    return;
+  }
+  const btn = e.target.closest('.sl-btn');
+  if (btn){
+    const i = +btn.closest('.sl').dataset.seat;
+    SLIDER[i] = Math.max(0, Math.min(4, SLIDER[i] + (+btn.dataset.dir)));
+    btn.closest('.sl-holder').innerHTML = sliderHTML(i);
+    return;
+  }
+  const medal = e.target.closest('.pl.votable .medal');
+  if (medal){
+    document.querySelectorAll('.pl.picked').forEach(x => x.classList.remove('picked'));
+    medal.closest('.pl').classList.add('picked');
+    document.querySelectorAll('[data-confirm]').forEach(b => b.disabled = false);
+  }
+});
+
+// One question is on the table at a time in ANSWER (index into QUESTIONS). ◀ ▶ moves between them.
+let QIDX = 1;
+let CUR_PHASE = 'INTRO';
+
+// What each other player's speech box shows in a phase.
+//   INTRO: nothing yet (intros are sealed until INTRO ends)
+//   ASK / VOTE / RESULT: intros
+//   ANSWER: only the asker's current question
+//   REVEAL: each player's answer to the current question (blank = skipped)
+function bubblesFor(phase){
+  const out = {};
+  const q = QUESTIONS[QIDX];
+  if (phase === 'ANSWER') out[q.seat] = {t: 'q', text: q.text};
+  else if (phase === 'REVEAL') ANSWERS[q.id].forEach(a => { if (a.seat !== 0) out[a.seat] = {t: 'a', text: a.text}; });
+  else if (['ASK', 'VOTE', 'RESULT'].includes(phase)) INTROS.forEach(x => { if (x.text) out[x.seat] = {t: 'intro', text: x.text}; });
+  return out;
+}
+function myAnswerInfo(q){
+  const mine = ANSWERS[q.id].find(a => a.seat === 0);
+  return {type: 'info', title: 'Your answer', hint: mine && mine.text ? mine.text : 'You skipped this one.'};
+}
+function phaseNavHTML(phase){
+  const idx = PHASE_ORDER.indexOf(phase);
+  return `<div class="pnav">
+    <button class="pbtn" data-p="-1" aria-label="Previous phase"${idx === 0 ? ' disabled' : ''}>▲</button>
+    <div class="plabel"><span class="px">Phase</span><b class="px">${phase}</b><span class="px">${idx + 1} / ${PHASE_ORDER.length}</span></div>
+    <button class="pbtn" data-p="1" aria-label="Next phase"${idx === PHASE_ORDER.length - 1 ? ' disabled' : ''}>▼</button>
+  </div>`;
+}
+function bubbleHTML(i, e){
+  const [x, y] = BUB_POS[i];
+  const pos = `left:${pctX(x)};top:${pctY(y)}`;
+  if (!e) return `<div class="bub empty tail-b" style="${pos}"><span class="who">${esc(SEATS[i].alias)}</span>…</div>`;
+  const asking = e.t === 'q';
+  const cls = ['bub', 'tail-b', asking ? 'q asking' : '', e.t === 'a' && !e.text ? 'skip' : ''].join(' ');
+  const body = asking ? esc(e.text) : esc(e.text || '—');
+  const label = asking ? 'asks the table' : (e.t === 'a' ? 'answers' : 'intro');
+  return `<div class="${cls}" style="${pos}"><span class="who">${esc(SEATS[i].alias)} · ${label}</span>${body}</div>`;
+}
+function sceneHTML(){
+  const backBoards = Array.from({length: 14}, (_, k) => `<i style="left:${(k / 14 * 100).toFixed(2)}%"></i>`).join('');
+  // floor lines: spacing grows toward the viewer
+  const floorLines = Array.from({length: 9}, (_, k) => {
+    const t = (k + 1) / 10;
+    const y = 430 + 390 * Math.pow(t, 1.5);
+    return `<i style="top:${(y - 430).toFixed(1)}px"></i>`;
+  }).join('');
+  return `<div class="scene">
+    <div class="back">${backBoards}<div class="lantern" style="left:60px"></div><div class="lantern" style="right:60px;left:auto"></div></div>
+    <div class="floor">${floorLines}</div>
+  </div>`;
+}
+
+function renderGame(phase){
+  CUR_PHASE = phase;
+  const p = PHASES[phase], latest = bubblesFor(phase);
+  const qNow = QUESTIONS[QIDX];
+  // Sample input at the 160-character limit, to check the composer layout.
+  const LONG_DRAFT = 'hey all, first time at this table. i work nights at the depot so ill probably fall asleep halfway through, sorry in advance if i go quiet on you lol see u all!!';
+  const c = phase === 'ANSWER'
+    ? {type:'text', label:'Answering ' + SEATS[qNow.seat].alias, body:qNow.text, max:PHASES.ANSWER.max, draft:QIDX === 1 ? LONG_ANSWER : ''}
+    : phase === 'REVEAL' ? myAnswerInfo(qNow)
+    : (phase === 'INTRO' || phase === 'ASK') ? Object.assign(composeData(phase), {draft: LONG_DRAFT})
+    : composeData(phase);
+  const sel = document.querySelector('.mockup-bar select');
+  if (sel && sel.value !== phase) sel.value = phase;
+  const app = document.getElementById('app');
+  const idx = PHASE_ORDER.indexOf(phase);
+
+  const centre = (phase === 'ANSWER' || phase === 'REVEAL')
+    ? `<div class="px asked">Asked by · ${esc(SEATS[qNow.seat].alias)}</div>
+       <p class="qtext">“${esc(qNow.text)}”</p>
+       <div class="qnav"><button class="qbtn" data-q="-1" aria-label="Previous question">◀</button><span class="px">Q ${QIDX + 1} / ${QUESTIONS.length}</span><button class="qbtn" data-q="1" aria-label="Next question">▶</button></div>
+       <div class="px timer" data-timer></div>`
+    : `<div class="px">${esc(p.title)}</div><p class="qtext">${esc(p.hint)}</p><div class="px timer" data-timer></div><div class="bar"><i data-bar></i></div>`;
+
+  app.innerHTML = `
+  <header class="head">
+    <div class="px logo">Find the Human</div>
+    <div class="px" style="font-size:9px;color:var(--parch)">Round 1 / 2 · ${phase}</div>
+  </header>
+  <nav class="flow" aria-label="Prototype screens"><a href="start.html">Start</a><a href="matching.html">Matching</a><a class="on" href="game-screen.html">Table</a><a href="result.html">Result</a><a href="stats.html">Stats</a></nav>
+
+  <div class="sign-wrap">
+    <div class="ropes"><i></i><i></i></div>
+    <div class="sign"><div class="px">${esc(p.title)}</div><p class="hint">${esc(p.hint)}</p></div>
+  </div>
+
+  <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+  <div class="stage-wrap"><section class="stage">
+    ${sceneHTML()}
+    <div class="table">${centre}</div>
+
+    ${[1, 2, 3, 4].map(i => `<div class="seat-at" style="left:${pctX(SEAT_POS[i][0])};top:${pctY(SEAT_POS[i][1])};--k:${SEAT_POS[i][2]}">
+      ${playerHTML(i, {reveal: phase === 'RESULT', votable: phase === 'VOTE'})}
+    </div>`).join('')}
+
+    <div class="seat-at" style="left:${pctX(SEAT_POS[0][0])};top:${pctY(SEAT_POS[0][1])};--k:${SEAT_POS[0][2]}">
+      ${playerHTML(0)}
+    </div>
+
+    ${[1, 2, 3, 4].map(i => bubbleHTML(i, latest[i])).join('')}
+
+    <div class="bub me-box tail-t">${composeHTML(c)}</div>
+
+    ${phaseNavHTML(phase)}
+  </section></div>`;
+  afterRender(app, phase);
+  fitStage();
+}
+
+mountControls(renderGame);
+</script>
+</body>
+</html>

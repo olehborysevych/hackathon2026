@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>B · Dialogue</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Variant B — Dialogue: a tavern scene with five standing patrons; the bottom parchment dialogue box is the single focus. */
+  .wrap{max-width:900px;margin:0 auto;padding:0 16px 40px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--gold);font-size:13px}
+  .pill{background:var(--parch);color:var(--ink);border:3px solid var(--ink);padding:6px 8px;font-size:10px}
+  .scene{position:relative;margin-top:14px;background:var(--wood-d);border:3px solid var(--ink);padding:22px 16px 0}
+  .scene::after{content:"";display:block;height:34px;margin:0 -16px;background:var(--wood);border-top:3px solid var(--ink)} /* the bar counter */
+  .patrons{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:end;padding-bottom:6px;position:relative;z-index:1}
+  .patrons .seat{padding:8px 6px 6px;box-shadow:3px 3px 0 var(--ink)}
+  .patrons .seat.speaking{border-color:var(--gold);outline:3px solid var(--gold);outline-offset:2px}
+  .patrons .seat .marks{gap:2px}
+  .patrons .mk{min-width:24px;padding:3px 2px;font-size:7px}
+  .patrons .note{display:none}
+  .patrons canvas.sprite{width:56px;height:56px}
+  .timer-row{display:flex;align-items:center;gap:12px;margin:14px 0 0}
+  .timer-row .px{font-size:11px;color:var(--gold)}
+  .timer-row .bar{flex:1;margin:0}
+  .dialog{position:relative;margin-top:-6px;z-index:2;background:var(--parch);color:var(--ink);border:4px solid var(--ink);box-shadow:6px 6px 0 var(--ink);padding:16px 18px 14px}
+  .nameplate{display:inline-block;background:var(--ink);color:var(--gold);font-family:'Press Start 2P',monospace;font-size:10px;padding:6px 8px;margin-bottom:10px;text-transform:uppercase}
+  .speech{font-size:24px;line-height:1.15;margin:0 0 6px;min-height:52px}
+  .advance{display:flex;align-items:center;gap:10px;margin-top:6px}
+  .advance .blink{font-family:'Press Start 2P',monospace;font-size:12px;color:var(--red)}
+  .dialog .ta{min-height:70px}
+  .dialog .qq{border-left-color:var(--red)}
+  details.logbox{margin-top:16px;background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:12px 14px}
+  details.logbox summary{font-family:'Press Start 2P',monospace;font-size:10px;cursor:pointer;color:var(--ink);padding:4px 0;list-style:none}
+  details.logbox summary::before{content:"▸ "}
+  details.logbox[open] summary::before{content:"▾ "}
+  details.logbox .list{max-height:300px;overflow:auto;margin-top:8px}
+  @media (max-width:640px){
+    .patrons{grid-template-columns:repeat(3,1fr)}
+    .patrons > :nth-child(n+4){grid-column:span 1}
+    .speech{font-size:22px}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+function renderB(phase){
+  const p = PHASES[phase], c = composeData(phase);
+  const entries = transcriptEntries(phase);
+  const last = entries[entries.length - 1];
+  const speakingSeat = last ? last.seat : -1;
+  const app = document.getElementById('app');
+
+  // Bottom dialogue: narration for info phases, composer for writing phases, the latest line otherwise.
+  let dialog;
+  if (c.type === 'info' || c.type === 'vote'){
+    const line = c.type === 'vote' ? 'Pick the human. Click a patron, then confirm.' : p.hint;
+    dialog = `<span class="nameplate">Tavern</span>
+      <p class="speech">${esc(line)}</p>
+      ${c.type === 'vote' ? `<button class="btn" data-confirm disabled>Confirm vote</button>` : ''}`;
+  } else {
+    dialog = `<span class="nameplate">Your turn</span>${composeHTML(c)}`;
+  }
+
+  app.innerHTML = `
+  <div class="wrap">
+    <header class="top">
+      <div class="px logo">Find the Human</div>
+      <div class="px pill">Round 1 / 2 · ${phase}</div>
+    </header>
+    <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+    <section class="scene">
+      <div class="patrons">
+        ${SEATS.map((_, i) => seatHTML(i, {
+          reveal: phase === 'RESULT',
+          selectable: phase === 'VOTE',
+          marks: true
+        }).replace('class="seat', i === speakingSeat ? 'class="seat speaking' : 'class="seat')).join('')}
+      </div>
+    </section>
+
+    <div class="timer-row"><span class="px" data-timer></span><div class="bar"><i data-bar></i></div></div>
+
+    <section class="dialog">${dialog}</section>
+
+    <details class="logbox" open>
+      <summary>Table log (${entries.length})</summary>
+      <div class="list">${entries.length ? entries.map(entryHTML).join('') : '<p class="hint">Nothing said yet.</p>'}</div>
+    </details>
+  </div>`;
+  afterRender(app, phase);
+}
+mountControls(renderB);
+</script>
+</body>
+</html>

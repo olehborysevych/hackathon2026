@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>D · Quest Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Variant D — Quest Board: the phase is a quest track across the top; patrons sit in a row of booths; the chalkboard log sits under them. */
+  .wrap{max-width:1080px;margin:0 auto;padding:0 16px 40px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 0 10px}
+  .logo{color:var(--gold);font-size:13px}
+  .timer-big{font-family:'Press Start 2P',monospace;font-size:18px;color:var(--gold);background:var(--ink);border:3px solid var(--gold);padding:6px 10px}
+
+  .track{list-style:none;margin:14px 0 0;padding:14px;background:var(--wood);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .track li{text-align:center;font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.5;color:var(--parch-d)}
+  .track li::before{content:"";display:block;width:26px;height:26px;margin:0 auto 6px;border:3px solid var(--ink);background:var(--wood-d)}
+  .track li.done{color:var(--parch)}
+  .track li.done::before{background:var(--green);content:"✓";color:var(--ink);font-size:14px;line-height:20px;text-align:center}
+  .track li.now{color:var(--gold)}
+  .track li.now::before{background:var(--gold);box-shadow:0 0 0 3px var(--ink) inset}
+  .objective{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:14px 0 0}
+  .objective .px{color:var(--gold);font-size:14px;margin:0}
+  .objective .hint{color:var(--parch);margin:4px 0 0}
+  .objective .bar{width:200px;margin:0}
+
+  .booths{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-top:16px}
+  .booths .seat{box-shadow:4px 4px 0 var(--ink);padding:10px 6px 8px}
+  .booths .note{font-size:17px}
+  .booths .mk{min-width:24px;font-size:7px;padding:3px 2px}
+
+  .lower{display:grid;grid-template-columns:1fr 340px;gap:16px;margin-top:16px;align-items:start}
+  .board{background:var(--ink);color:var(--parch);border:3px solid var(--gold);padding:14px;box-shadow:4px 4px 0 var(--gold)}
+  .board .px{color:var(--gold);font-size:10px;margin-bottom:8px}
+  .board .log{max-height:420px;overflow:auto;padding-right:6px}
+  .board .ent{color:var(--parch);border-bottom-color:var(--wood-l)}
+  .board .ent .who{color:var(--sky)}
+  .board .ent .say{color:var(--parch)}
+  .board .ent.q{background:var(--wood);border-color:var(--gold)}
+  .board .ent.q .tagline{color:var(--gold)}
+  .board .ent.q .say{color:var(--white)}
+  .board .ent.a.skip .say{color:var(--grey)}
+  .board .ent.intro .who{color:var(--teal)}
+  .board .empty{color:var(--grey);margin:0}
+  .action{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:4px 4px 0 var(--ink);padding:14px}
+
+  @media (max-width:860px){
+    .booths{grid-template-columns:repeat(3,1fr)}
+    .track{grid-template-columns:repeat(3,1fr);row-gap:12px}
+    .lower{grid-template-columns:1fr}
+  }
+  @media (max-width:520px){
+    .track li{font-size:7px}
+    .objective .bar{width:100%}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="shared.js"></script>
+<script>
+function renderD(phase){
+  const p = PHASES[phase], c = composeData(phase);
+  const entries = transcriptEntries(phase);
+  const idx = PHASE_ORDER.indexOf(phase);
+  const app = document.getElementById('app');
+  app.innerHTML = `
+  <div class="wrap">
+    <header class="top">
+      <div class="px logo">Find the Human · Round 1 / 2</div>
+      <div class="timer-big" data-timer></div>
+    </header>
+    <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+    <ol class="track" aria-label="Phase">
+      ${PHASE_ORDER.map((ph, i) => `<li class="${i < idx ? 'done' : i === idx ? 'now' : ''}">${ph}</li>`).join('')}
+    </ol>
+
+    <div class="objective">
+      <div>
+        <div class="px">${esc(p.title)}</div>
+        <p class="hint">${esc(p.hint)}</p>
+      </div>
+      <div class="bar"><i data-bar></i></div>
+    </div>
+
+    <div class="booths">
+      ${SEATS.map((_, i) => seatHTML(i, {reveal: phase === 'RESULT', selectable: phase === 'VOTE'})).join('')}
+    </div>
+
+    <div class="lower">
+      <section class="board">
+        <div class="px">Chalkboard · table log</div>
+        <div class="log">${entries.length ? entries.map(entryHTML).join('') : '<p class="empty">Nothing on the board yet.</p>'}</div>
+      </section>
+      <section class="action">${composeHTML(c)}</section>
+    </div>
+  </div>`;
+  afterRender(app, phase);
+}
+mountControls(renderD);
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Result · Find the Human</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Final result: did you guess right, were you found, and what you scored (SPEC §2.3, §5 game.result). */
+  .wrap{max-width:900px;margin:0 auto;padding:0 16px 48px}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .logo{color:var(--gold);font-size:14px;padding-top:12px}
+  .demo{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--gold);display:flex;gap:6px;align-items:center}
+  .demo select{font-family:'Press Start 2P',monospace;font-size:8px;background:var(--parch);color:var(--ink);border:2px solid var(--ink);padding:4px;border-radius:6px}
+  .disclosure{background:var(--ink);color:var(--gold);border:3px solid var(--gold);padding:8px 12px;text-align:center;font-size:19px;line-height:1.2;border-radius:6px;margin-top:12px}
+
+  /* the verdict */
+  .verdict{margin-top:18px;border:5px solid var(--ink);box-shadow:7px 7px 0 var(--ink);border-radius:14px;padding:22px 18px;text-align:center;background:var(--parch);color:var(--ink)}
+  .verdict .tag{display:inline-block;font-family:'Press Start 2P',monospace;font-size:10px;padding:6px 10px;border:3px solid var(--ink);border-radius:8px;margin-bottom:12px}
+  .verdict h1{font-family:'Press Start 2P',monospace;font-weight:400;font-size:20px;line-height:1.5;margin:0 0 10px}
+  .verdict p{margin:0;font-size:24px;line-height:1.2}
+  .verdict.mutual{background:var(--green);color:var(--ink)}
+  .verdict.mutual .tag{background:var(--gold)}
+  .verdict.missed{background:var(--red);color:var(--white)}
+  .verdict.missed .tag{background:var(--ink);color:var(--parch)}
+  .verdict.wrong{background:var(--parch-d);color:var(--ink)}
+  .verdict.wrong .tag{background:var(--sky)}
+
+  /* the two questions, side by side */
+  .pair{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
+  .card{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:12px;padding:16px}
+  .card .q{font-family:'Press Start 2P',monospace;font-size:9px;color:var(--red);text-transform:uppercase;margin:0 0 10px;line-height:1.5}
+  .answer{font-family:'Press Start 2P',monospace;font-size:14px;line-height:1.4;padding:10px;border-radius:8px;border:3px solid var(--ink);display:inline-block}
+  .answer.yes{background:var(--green)}
+  .answer.no{background:var(--red);color:var(--white)}
+  .card p{margin:10px 0 0;font-size:21px;line-height:1.2}
+
+  /* points */
+  .points{margin-top:14px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:var(--wood);color:var(--parch);border:4px solid var(--ink);box-shadow:5px 5px 0 var(--ink);border-radius:12px;padding:14px 18px;flex-wrap:wrap}
+  .points .big{font-family:'Press Start 2P',monospace;font-size:34px;color:var(--gold);text-shadow:3px 3px 0 var(--ink)}
+  .points ul{margin:0;padding:0;list-style:none;font-size:21px;line-height:1.3}
+  .points li b{color:var(--gold)}
+
+  /* the table, unmasked */
+  h2.sec{font-family:'Press Start 2P',monospace;font-weight:400;font-size:11px;color:var(--gold);margin:26px 0 10px;text-transform:uppercase}
+  .reveal{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+  .who{background:var(--parch);color:var(--ink);border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);border-radius:12px;padding:10px 6px;text-align:center}
+  .who.me{border-color:var(--gold)}
+  .medal{width:64px;height:64px;margin:0 auto;border-radius:50%;background:var(--parch-d);border:4px solid var(--ink);display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .medal canvas{width:50px;height:50px;image-rendering:pixelated}
+  .who .name{font-family:'Press Start 2P',monospace;font-size:7px;line-height:1.5;margin:8px 0 4px;text-transform:uppercase}
+  .role{display:inline-block;font-family:'Press Start 2P',monospace;font-size:7px;padding:4px 6px;border-radius:8px;border:2px solid var(--ink)}
+  .role.human{background:var(--green)}
+  .role.ai{background:var(--red);color:var(--white)}
+  .got{font-size:19px;margin-top:6px}
+
+  table{width:100%;border-collapse:collapse;font-size:21px;background:var(--parch);color:var(--ink);border:3px solid var(--ink);border-radius:10px;overflow:hidden}
+  th,td{padding:7px 10px;border-bottom:2px dotted var(--parch-d);text-align:left}
+  th{font-family:'Press Start 2P',monospace;font-size:8px;color:var(--wood);font-weight:400}
+  .pill{font-family:'Press Start 2P',monospace;font-size:7px;padding:3px 6px;border-radius:8px;border:2px solid var(--ink)}
+  .pill.h{background:var(--green)}
+  .pill.a{background:var(--red);color:var(--white)}
+  .pill.hit{background:var(--gold)}
+
+  .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:24px}
+  .btn{font-family:'Press Start 2P',monospace;font-size:11px;line-height:1.3;padding:14px 18px;border:4px solid var(--ink);box-shadow:0 5px 0 var(--ink);border-radius:10px;text-decoration:none;color:var(--ink);background:var(--gold)}
+  .btn.ghost{background:var(--parch)}
+
+  @media (max-width:640px){
+    .pair{grid-template-columns:1fr}
+    .reveal{grid-template-columns:repeat(3,1fr)}
+    .verdict h1{font-size:15px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="px logo">Find the Human</div>
+    <label class="demo">Demo outcome
+      <select id="outcome" aria-label="Demo outcome">
+        <option value="mutual">Mutual match</option>
+        <option value="wrong">Missed, but found</option>
+        <option value="missed">Missed, not found</option>
+      </select>
+    </label>
+  </div>
+  <nav class="flow" aria-label="Prototype screens"><a href="start.html">Start</a><a href="matching.html">Matching</a><a href="game-screen.html">Table</a><a class="on" href="result.html">Result</a><a href="stats.html">Stats</a></nav>
+  <div class="disclosure">Some players at every table are AI. AI players will claim to be human — that's the game.</div>
+
+  <div id="out"></div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+// Human seats: 0 = you (Amber Owl), 1 = Blue Fox (the other human). Seats 2–4 are AI.
+// votes: [voter, target]. myVote: the seat you voted for. foundBy: the seat that voted for you (null if none).
+const OUTCOMES = {
+  mutual:  {myVote: 1, foundBy: 1,    votes: [[0,1],[1,0],[2,4],[3,0],[4,1]]},
+  wrong:   {myVote: 4, foundBy: 1,    votes: [[0,4],[1,0],[2,4],[3,0],[4,1]]},
+  missed:  {myVote: 3, foundBy: null, votes: [[0,3],[1,2],[2,4],[3,1],[4,2]]}
+};
+const name = i => SEATS[i].alias;
+
+function scoreOf(o){
+  const correct = o.myVote === 1;
+  const found = o.foundBy !== null;
+  const mutual = correct && found;
+  return {correct, found, mutual, points: (correct ? 1 : 0) + (found ? 1 : 0) + (mutual ? 1 : 0)};
+}
+
+function render(key){
+  const o = OUTCOMES[key], s = scoreOf(o);
+  const votesIn = i => o.votes.filter(([, t]) => t === i).length;
+  let verdict;
+  if (s.mutual) verdict = {cls:'mutual', tag:'MUTUAL MATCH', title:'You found the human', sub:`${name(1)} found you too.`};
+  else if (s.correct) verdict = {cls:'mutual', tag:'CORRECT GUESS', title:'You found the human', sub:`${name(1)} did not find you back.`};
+  else if (s.found) verdict = {cls:'wrong', tag:'ONE-SIDED', title:'You missed, but you were found', sub:`${name(1)} voted for you. You voted for ${name(o.myVote)}, who is an AI.`};
+  else verdict = {cls:'missed', tag:'MISSED', title:'You missed', sub:`You voted for ${name(o.myVote)}, an AI. ${name(1)} was the other human and did not find you.`};
+
+  const guessCard = `<div class="card"><p class="q">Did you guess right?</p>
+    <span class="answer ${s.correct ? 'yes' : 'no'}">${s.correct ? 'YES' : 'NO'}</span>
+    <p>You voted for <b>${name(o.myVote)}</b>. ${s.correct ? 'They are the other human.' : 'They are an AI.'}</p></div>`;
+  const foundCard = `<div class="card"><p class="q">Did another player find you?</p>
+    <span class="answer ${s.found ? 'yes' : 'no'}">${s.found ? 'YES' : 'NO'}</span>
+    <p>${s.found ? `<b>${name(o.foundBy)}</b> voted for you.` : 'Nobody voted for you.'}</p></div>`;
+
+  const points = `<div class="points"><div><div class="px" style="font-size:9px;color:var(--parch-d);margin-bottom:8px">Points this game</div>
+    <div class="big">+${s.points}</div></div>
+    <ul>
+      <li>${s.correct ? '<b>+1</b>' : '+0'} you voted for the other human</li>
+      <li>${s.found ? '<b>+1</b>' : '+0'} the other human voted for you</li>
+      <li>${s.mutual ? '<b>+1</b>' : '+0'} mutual bonus</li>
+    </ul></div>`;
+
+  const seats = [0,1,2,3,4].map(i => {
+    const rv = REVEAL_SEATS[i];
+    const role = rv.kind === 'ai' ? `<span class="role ai">AI · ${esc(rv.model)}</span>` : `<span class="role human">HUMAN</span>`;
+    const you = i === 0 ? ' · you' : '';
+    return `<div class="who${i === 0 ? ' me' : ''}"><div class="medal"><canvas width="16" height="16" data-seed="${SEATS[i].seed}"></canvas></div>
+      <div class="name">${esc(SEATS[i].alias)}${you}</div>${role}
+      <div class="got">${votesIn(i)} vote${votesIn(i) === 1 ? '' : 's'}</div></div>`;
+  }).join('');
+
+  const hum = new Set([0,1]);
+  const rows = o.votes.map(([v, t]) => {
+    const tgt = REVEAL_SEATS[t].kind === 'ai' ? '<span class="pill a">AI</span>' : '<span class="pill h">HUMAN</span>';
+    const hit = hum.has(v) && t === 1 ? '<span class="pill hit">HUMAN VOTE</span>' : (hum.has(v) ? '<span class="pill">HUMAN VOTE</span>' : '<span class="pill">AI VOTE · not scored</span>');
+    return `<tr><td>${esc(name(v))}${v === 0 ? ' (you)' : ''}</td><td>${esc(name(t))}</td><td>${tgt}</td><td>${hit}</td></tr>`;
+  }).join('');
+
+  document.getElementById('out').innerHTML = `
+    <section class="verdict ${verdict.cls}">
+      <span class="tag">${verdict.tag}</span>
+      <h1>${verdict.title}</h1>
+      <p>${verdict.sub}</p>
+    </section>
+    <div class="pair">${guessCard}${foundCard}</div>
+    ${points}
+    <h2 class="sec">The table, unmasked</h2>
+    <div class="reveal">${seats}</div>
+    <h2 class="sec">Votes</h2>
+    <table><thead><tr><th>Voter</th><th>Voted for</th><th>Target is</th><th>Counts</th></tr></thead><tbody>${rows}</tbody></table>
+    <div class="actions">
+      <a class="btn" href="stats.html">My stats</a>
+      <a class="btn ghost" href="start.html">Play again</a>
+    </div>`;
+  initSprites(document.getElementById('out'));
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const sel = document.getElementById('outcome');
+sel.addEventListener('change', () => render(sel.value));
+render(sel.value);
+</script>
+</body>
+</html>
